@@ -11,11 +11,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/net/html"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/htmlindex"
+	"golang.org/x/text/transform"
 )
 
 // Fetcher crawls and downloads website content.
@@ -178,7 +182,8 @@ func (f *Fetcher) crawl(targetURL, crawlDir string, depth int) error {
 	fmt.Printf("\r[%d pages | %dm%02ds | %.1f/s] %s", f.downloadCount, mins, secs, rate, shortURL)
 
 	// Parse HTML and extract links
-	doc, err := html.Parse(strings.NewReader(string(body)))
+	htmlString := decodeHTML(body, resp.Header.Get("Content-Type"))
+	doc, err := html.Parse(strings.NewReader(htmlString))
 	if err != nil {
 		return nil // Skip if we can't parse
 	}
@@ -258,4 +263,114 @@ func isNonHTMLResource(urlStr string) bool {
 		}
 	}
 	return false
+}
+
+// decodeHTML decodes HTML bytes to string using detected charset.
+// It tries to extract charset from Content-Type header or HTML meta tag.
+func decodeHTML(body []byte, contentType string) string {
+	// Try to get charset from Content-Type header
+	enc := getEncodingFromContentType(contentType)
+	if enc != nil {
+		decoded, err := decodeWithEncoding(body, enc)
+		if err == nil {
+			return decoded
+		}
+	}
+
+	// Try to get charset from HTML meta tag
+	enc = getEncodingFromMeta(body)
+	if enc != nil {
+		decoded, err := decodeWithEncoding(body, enc)
+		if err == nil {
+			return decoded
+		}
+	}
+
+	// Fallback to UTF-8
+	return string(body)
+}
+
+// getEncodingFromContentType extracts charset from Content-Type header.
+func getEncodingFromContentType(contentType string) encoding.Encoding {
+	if contentType == "" {
+		return nil
+	}
+
+	// Parse charset from Content-Type header
+	re := regexp.MustCompile(`charset=([^\s;]+)`)
+	matches := re.FindStringSubmatch(contentType)
+	if len(matches) > 1 {
+		charset := strings.Trim(matches[1], `"'`)
+		enc, err := htmlindex.Get(charset)
+		if err == nil {
+			return enc
+		}
+	}
+
+	return nil
+}
+
+// getEncodingFromMeta extracts charset from HTML meta tag.
+func getEncodingFromMeta(body []byte) encoding.Encoding {
+	// Quick check for BOM first
+	if len(body) >= 3 && body[0] == 0xEF && body[1] == 0xBB && body[2] == 0xBF {
+		// UTF-8 BOM
+		return nil // UTF-8 is default
+	}
+
+	// Parse HTML to find meta charset
+	doc, err := html.Parse(strings.NewReader(string(body)))
+	if err != nil {
+		return nil
+	}
+
+	var findMeta func(*html.Node) encoding.Encoding
+	findMeta = func(n *html.Node) encoding.Encoding {
+		if n.Type == html.ElementNode && n.Data == "meta" {
+			var charset string
+			for _, attr := range n.Attr {
+				if attr.Key == "charset" {
+					charset = attr.Val
+					break
+				}
+				if attr.Key == "http-equiv" && strings.ToLower(attr.Val) == "content-type" {
+					// Look for content attribute
+					for _, a := range n.Attr {
+						if a.Key == "content" {
+							re := regexp.MustCompile(`charset=([^\s;]+)`)
+							matches := re.FindStringSubmatch(a.Val)
+							if len(matches) > 1 {
+								charset = strings.Trim(matches[1], `"'`)
+							}
+							break
+						}
+					}
+				}
+			}
+			if charset != "" {
+				enc, err := htmlindex.Get(charset)
+				if err == nil {
+					return enc
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if enc := findMeta(c); enc != nil {
+				return enc
+			}
+		}
+		return nil
+	}
+
+	return findMeta(doc)
+}
+
+// decodeWithEncoding decodes bytes using specified encoding.
+func decodeWithEncoding(body []byte, enc encoding.Encoding) (string, error) {
+	reader := transform.NewReader(strings.NewReader(string(body)), enc.NewDecoder())
+	decoded, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
 }
