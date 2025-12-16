@@ -1,0 +1,12 @@
+builds:
+  - id: site2skillgo
+    main: ./cmd/site2skillgo
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+
+images:
+  - image: ko.local/site2skillgo
+    tags:
+      - latest

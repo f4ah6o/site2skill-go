@@ -11,13 +11,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/f4ah6o/site2skill-go/internal/converter"
-	"github.com/f4ah6o/site2skill-go/internal/fetcher"
-	"github.com/f4ah6o/site2skill-go/internal/normalizer"
-	"github.com/f4ah6o/site2skill-go/internal/packager"
-	"github.com/f4ah6o/site2skill-go/internal/search"
-	"github.com/f4ah6o/site2skill-go/internal/skillgen"
-	"github.com/f4ah6o/site2skill-go/internal/validator"
+	"github.com/f4ah6o/site2skillgo/internal/converter"
+	"github.com/f4ah6o/site2skillgo/internal/fetcher"
+	"github.com/f4ah6o/site2skillgo/internal/normalizer"
+	"github.com/f4ah6o/site2skillgo/internal/packager"
+	"github.com/f4ah6o/site2skillgo/internal/search"
+	"github.com/f4ah6o/site2skillgo/internal/skillgen"
+	"github.com/f4ah6o/site2skillgo/internal/validator"
 )
 
 const (
