@@ -16,7 +16,7 @@ WORKDIR /workspace
 COPY . /app/site2skill-go
 
 # Test installation from local path
-RUN uvx --from /app/site2skill-go site2skill --help
+RUN uvx --from /app/site2skill-go site2skillgo --help
 
 # Default command shows help
-CMD ["uvx", "--from", "/app/site2skill-go", "site2skill", "--help"]
+CMD ["uvx", "--from", "/app/site2skill-go", "site2skillgo", "--help"]

@@ -29,9 +29,8 @@ venv/
 .doc/
 
 # Go
-s2s-go
+site2skillgo
 bin/
-s2s-go
 *.exe
 *.exe~
 *.dll

@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "site2skill-go"
+name = "site2skillgo"
 version = "0.1.0"
 description = "Turn any website into a Claude Skill"
 readme = "README.md"
@@ -15,14 +15,14 @@ dependencies = [
 ]
 
 [project.scripts]
-s2s-go = "site2skill.main:main"
+site2skillgo = "site2skillgo.main:main"
 
 [tool.setuptools]
-packages = ["site2skill"]
+packages = ["site2skillgo"]
 package-dir = {"" = "."}
 
 [tool.setuptools.package-data]
-site2skill = ["templates/*"]
+site2skillgo = ["templates/*"]
 
 [tool.uv]
 # No special uv settings needed yet

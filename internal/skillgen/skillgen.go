@@ -97,10 +97,10 @@ All documentation files are in the `+"`docs/`"+` directory as Markdown files.
 
 ## Search Tool
 
-Use the `+"`s2s-go search`"+` command to search through documentation:
+Use the `+"`site2skillgo search`"+` command to search through documentation:
 
 `+"```bash"+`
-s2s-go search "<query>" --skill-dir .
+site2skillgo search "<query>" --skill-dir .
 `+"```"+`
 
 Options:
@@ -137,10 +137,10 @@ This skill provides access to %s documentation for OpenAI Codex.
 
 ## Search Documentation
 
-Use the `+"`s2s-go search`"+` command to find relevant documentation:
+Use the `+"`site2skillgo search`"+` command to find relevant documentation:
 
 `+"```bash"+`
-s2s-go search "your query here" --skill-dir .
+site2skillgo search "your query here" --skill-dir .
 `+"```"+`
 
 Options:
@@ -165,10 +165,10 @@ Each file in `+"`docs/`"+` contains:
 
 `+"```bash"+`
 # Search for authentication documentation
-s2s-go search "authentication api key" --skill-dir .
+site2skillgo search "authentication api key" --skill-dir .
 
 # Get top 5 results as JSON
-s2s-go search "payment methods" --json --max-results 5 --skill-dir .
+site2skillgo search "payment methods" --json --max-results 5 --skill-dir .
 `+"```"+`
 `, strings.ToUpper(skillName), strings.ToUpper(skillName))
 }
