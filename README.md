@@ -63,21 +63,21 @@ s2s-go https://docs.example.com myskill --format codex
 s2s-go <URL> <SKILL_NAME> [options]
 
 Options:
-  -url string
+  --url string
         URL of the documentation site (required)
-  -name string
+  --name string
         Name of the skill (required)
-  -format string
+  --format string
         Output format: claude or codex (default "claude")
-  -output string
+  --output string
         Base output directory for skill structure (default ".claude/skills")
-  -skill-output string
+  --skill-output string
         Output directory for .skill file (default ".")
-  -temp-dir string
+  --temp-dir string
         Temporary directory for processing (default "build")
-  -skip-fetch
+  --skip-fetch
         Skip the download step (use existing files in temp dir)
-  -clean
+  --clean
         Clean up temporary directory after completion
 ```
 
