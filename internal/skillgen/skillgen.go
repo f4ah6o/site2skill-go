@@ -16,6 +16,8 @@ const (
 	FormatClaude = "claude"
 	// FormatCodex specifies generation of an OpenAI Codex-compatible skill.
 	FormatCodex = "codex"
+	// FormatBoth specifies generation of both Claude and Codex-compatible skills.
+	FormatBoth = "both"
 )
 
 
@@ -65,6 +67,9 @@ func (g *Generator) createSkillMD(skillDir, skillName string) error {
 	var content string
 	if g.format == FormatCodex {
 		content = g.getCodexSkillContent(skillName)
+	} else if g.format == FormatBoth {
+		// For "both" format, use Claude format by default (will be handled by Generator)
+		content = g.getClaudeSkillContent(skillName)
 	} else {
 		content = g.getClaudeSkillContent(skillName)
 	}

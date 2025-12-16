@@ -55,6 +55,9 @@ site2skillgo generate https://docs.example.com myskill
 
 # Generate a Codex skill
 site2skillgo generate https://docs.example.com myskill --format codex
+
+# Generate both Claude and Codex skills
+site2skillgo generate https://docs.example.com myskill --format both
 ```
 
 ### Commands
@@ -69,7 +72,7 @@ site2skillgo generate <URL> <SKILL_NAME> [options]
 
 **Options:**
 - `--format string`
-  - Output format: `claude` or `codex` (default "claude")
+  - Output format: `claude`, `codex`, or `both` (default "claude")
 - `--output string`
   - Base output directory for skill structure (default ".claude/skills")
 - `--skill-output string`
@@ -105,6 +108,9 @@ site2skillgo generate https://docs.pay.jp/v1/ payjp
 
 # Create a Codex skill for Stripe API
 site2skillgo generate https://stripe.com/docs/api stripe --format codex
+
+# Create both Claude and Codex skills
+site2skillgo generate https://docs.python.org/3/ python3 --format both
 
 # Custom output directory
 site2skillgo generate https://docs.python.org/3/ python3 --output ./my-skills --clean
@@ -154,6 +160,12 @@ Use the built-in `site2skillgo search` command to search through documentation f
 - Plain markdown structure
 - JSON output support
 - Simplified search interface
+
+### Both Format
+- Generates both Claude and Codex skill packages from the same documentation source
+- Uses Claude format as the default SKILL.md for the skill directory
+- Useful for maintaining compatibility across multiple AI platforms
+- Both .skill files are created with their respective formats
 
 ## Search Functionality
 

@@ -25,6 +25,8 @@ const (
 	FormatClaude = "claude"
 	// FormatCodex specifies output format for OpenAI Codex skill packages.
 	FormatCodex = "codex"
+	// FormatBoth specifies output format for both Claude and Codex skill packages.
+	FormatBoth = "both"
 )
 
 func main() {
@@ -107,7 +109,7 @@ func runGenerate(args []string) {
 	fs.StringVar(&tempDir, "temp-dir", "build", "Temporary directory for processing")
 	fs.BoolVar(&skipFetch, "skip-fetch", false, "Skip the download step (use existing files in temp dir)")
 	fs.BoolVar(&clean, "clean", false, "Clean up temporary directory after completion")
-	fs.StringVar(&format, "format", "claude", "Output format: claude or codex")
+	fs.StringVar(&format, "format", "claude", "Output format: claude, codex, or both")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: site2skillgo generate <URL> <SKILL_NAME> [options]
@@ -153,8 +155,8 @@ Examples:
 	}
 
 	// Validate format
-	if format != FormatClaude && format != FormatCodex {
-		log.Fatalf("Invalid format: %s. Must be 'claude' or 'codex'", format)
+	if format != FormatClaude && format != FormatCodex && format != FormatBoth {
+		log.Fatalf("Invalid format: %s. Must be 'claude', 'codex', or 'both'", format)
 	}
 
 	executeGenerate(url, skillName, output, skillOutput, tempDir, skipFetch, clean, format)
@@ -267,32 +269,52 @@ func executeGenerate(url, skillName, output, skillOutput, tempDir string, skipFe
 	}
 
 	// Step 4: Generate Skill Structure
-	log.Printf("=== Step 4: Generating Skill Structure (%s format) ===", format)
-	gen := skillgen.New(format)
-	if err := gen.Generate(skillName, tempMdDir, output); err != nil {
-		log.Fatalf("Failed to generate skill structure: %v", err)
-	}
+	var skillDirs []string
 
-	skillDir := filepath.Join(output, skillName)
+	if format == FormatBoth {
+		// Generate both Claude and Codex formats
+		for _, fmt := range []string{FormatClaude, FormatCodex} {
+			log.Printf("=== Step 4: Generating Skill Structure (%s format) ===", fmt)
+			gen := skillgen.New(fmt)
+			if err := gen.Generate(skillName, tempMdDir, output); err != nil {
+				log.Fatalf("Failed to generate skill structure: %v", err)
+			}
+			skillDirs = append(skillDirs, filepath.Join(output, skillName))
+		}
+	} else {
+		log.Printf("=== Step 4: Generating Skill Structure (%s format) ===", format)
+		gen := skillgen.New(format)
+		if err := gen.Generate(skillName, tempMdDir, output); err != nil {
+			log.Fatalf("Failed to generate skill structure: %v", err)
+		}
+		skillDirs = append(skillDirs, filepath.Join(output, skillName))
+	}
 
 	// Step 5: Validate Skill
 	log.Printf("=== Step 5: Validating Skill ===")
 	val := validator.New()
-	if !val.Validate(skillDir) {
-		log.Printf("Warning: Validation failed. Please check errors.")
+	for _, dir := range skillDirs {
+		if !val.Validate(dir) {
+			log.Printf("Warning: Validation failed for %s. Please check errors.", dir)
+		}
 	}
 
 	// Step 6: Package Skill
 	log.Printf("=== Step 6: Packaging Skill ===")
 	pkg := packager.New()
-	skillFile, err := pkg.Package(skillDir, skillOutput)
-	if err != nil {
-		log.Fatalf("Failed to package skill: %v", err)
+	var skillFiles []string
+	for _, dir := range skillDirs {
+		skillFile, err := pkg.Package(dir, skillOutput)
+		if err != nil {
+			log.Fatalf("Failed to package skill: %v", err)
+		}
+		skillFiles = append(skillFiles, skillFile)
 	}
 
 	log.Printf("=== Done! ===")
-	log.Printf("Skill directory: %s", skillDir)
-	log.Printf("Skill package: %s", skillFile)
+	for i, file := range skillFiles {
+		log.Printf("Skill package %d: %s", i+1, file)
+	}
 
 	// Cleanup
 	if clean {
