@@ -1,8 +1,8 @@
-# site2skill
+# site2skill-go
 
 **Turn any documentation website into a Claude or Codex Agent Skill.**
 
-`site2skill` is a tool that scrapes a documentation website, converts it to Markdown, and packages it as an Agent Skill (ZIP format) with proper entry points and search functionality.
+`s2s-go` is a tool that scrapes a documentation website, converts it to Markdown, and packages it as an Agent Skill (ZIP format) with proper entry points and search functionality.
 
 Agent Skills are dynamically loaded knowledge modules that AI assistants use on demand. This tool now supports both:
 - **Claude Agent Skills** - For Claude Code, Claude apps, and the API
@@ -22,7 +22,7 @@ Agent Skills are dynamically loaded knowledge modules that AI assistants use on 
 ### Using `go install` (Recommended)
 
 ```bash
-go install github.com/f4ah6o/site2skill/cmd/site2skill@latest
+go install github.com/f4ah6o/site2skill-go/cmd/s2s-go@latest
 ```
 
 This will download and install the latest version globally. The binary will be placed in `$GOPATH/bin` (usually `~/go/bin`).
@@ -31,19 +31,19 @@ This will download and install the latest version globally. The binary will be p
 
 ```bash
 # Clone the repository
-git clone https://github.com/f4ah6o/site2skill
-cd site2skill
+git clone https://github.com/f4ah6o/site2skill-go
+cd site2skill-go
 
 # Build the binary
-go build -o site2skill ./cmd/site2skill
+go build -o s2s-go ./cmd/s2s-go
 
 # Optional: Install globally
-go install ./cmd/site2skill
+go install ./cmd/s2s-go
 ```
 
 ### Pre-built Binaries
 
-Download the latest release from the [releases page](https://github.com/f4ah6o/site2skill/releases).
+Download the latest release from the [releases page](https://github.com/f4ah6o/site2skill-go/releases).
 
 ## Usage
 
@@ -51,16 +51,16 @@ Download the latest release from the [releases page](https://github.com/f4ah6o/s
 
 ```bash
 # Generate a Claude skill
-site2skill https://docs.example.com myskill
+s2s-go https://docs.example.com myskill
 
 # Generate a Codex skill
-site2skill https://docs.example.com myskill --format codex
+s2s-go https://docs.example.com myskill --format codex
 ```
 
 ### Full Options
 
 ```bash
-site2skill <URL> <SKILL_NAME> [options]
+s2s-go <URL> <SKILL_NAME> [options]
 
 Options:
   -url string
@@ -85,16 +85,16 @@ Options:
 
 ```bash
 # Create a Claude skill for PAY.JP documentation
-site2skill https://docs.pay.jp/v1/ payjp
+s2s-go https://docs.pay.jp/v1/ payjp
 
 # Create a Codex skill for Stripe API
-site2skill https://stripe.com/docs/api stripe --format codex
+s2s-go https://stripe.com/docs/api stripe --format codex
 
 # Custom output directory
-site2skill https://docs.python.org/3/ python3 --output ./my-skills --clean
+s2s-go https://docs.python.org/3/ python3 --output ./my-skills --clean
 
 # Skip fetching (reuse downloaded files)
-site2skill https://docs.example.com example --skip-fetch
+s2s-go https://docs.example.com example --skip-fetch
 ```
 
 ## How it works
@@ -161,9 +161,9 @@ The original Python version is available in the `python-legacy` branch. The Go v
 go test ./...
 
 # Build for all platforms
-GOOS=linux GOARCH=amd64 go build -o site2skill-linux-amd64 ./cmd/site2skill
-GOOS=darwin GOARCH=amd64 go build -o site2skill-darwin-amd64 ./cmd/site2skill
-GOOS=windows GOARCH=amd64 go build -o site2skill-windows-amd64.exe ./cmd/site2skill
+GOOS=linux GOARCH=amd64 go build -o s2s-go-linux-amd64 ./cmd/s2s-go
+GOOS=darwin GOARCH=amd64 go build -o s2s-go-darwin-amd64 ./cmd/s2s-go
+GOOS=windows GOARCH=amd64 go build -o s2s-go-windows-amd64.exe ./cmd/s2s-go
 ```
 
 ## License
