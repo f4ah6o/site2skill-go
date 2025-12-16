@@ -58,21 +58,22 @@ def extract_frontmatter(content: str) -> Tuple[Dict, str]:
 def get_context(text: str, query: str, context_lines: int = 2) -> List[str]:
     """
     Find matches and extract surrounding context lines.
-    
+
     Args:
         text: Body text to search
-        query: Search term
+        query: Search term (can be space-separated for multiple keywords)
         context_lines: Number of lines before/after to include
-        
+
     Returns:
         List of context snippets
     """
     lines = text.split('\n')
-    query_lower = query.lower()
+    keywords = query.lower().split()
     contexts = []
-    
-    # Find line indices with matches
-    match_indices = [i for i, line in enumerate(lines) if query_lower in line.lower()]
+
+    # Find line indices with matches (any keyword)
+    match_indices = [i for i, line in enumerate(lines)
+                     if any(kw in line.lower() for kw in keywords)]
     
     if not match_indices:
         return []
@@ -119,7 +120,7 @@ def search_docs(skill_dir: Path, query: str, max_results: int = 10) -> List[Dict
 
     Args:
         skill_dir: Root directory of the skill
-        query: Search term
+        query: Search term (space-separated for multiple keywords, OR logic)
         max_results: Maximum number of files to return
 
     Returns:
@@ -130,6 +131,7 @@ def search_docs(skill_dir: Path, query: str, max_results: int = 10) -> List[Dict
         print(f"Error: {docs_dir} not found.")
         return []
 
+    keywords = query.lower().split()
     results = []
 
     # Walk through all markdown files in docs/
@@ -139,10 +141,12 @@ def search_docs(skill_dir: Path, query: str, max_results: int = 10) -> List[Dict
                 content = f.read()
 
             frontmatter, body = extract_frontmatter(content)
+            body_lower = body.lower()
 
-            # Case-insensitive search
-            if query.lower() in body.lower():
-                matches_count = body.lower().count(query.lower())
+            # Count matches for each keyword
+            matches_count = sum(body_lower.count(kw) for kw in keywords)
+
+            if matches_count > 0:
                 contexts = get_context(body, query)
 
                 results.append({
