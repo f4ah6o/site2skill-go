@@ -159,15 +159,6 @@ Use the built-in `site2skillgo search` command to search through documentation f
 
 The `site2skillgo search` command is automatically embedded in each generated skill and can also be used via the command line to search through skill documentation. See the [Search Command](#search-command) section above for usage details.
 
-## Python Version (Legacy)
-
-The original Python version is available in the `python-legacy` branch. The Go version offers:
-- ✅ Single binary distribution
-- ✅ No external dependencies (no wget required)
-- ✅ Faster execution
-- ✅ Better cross-platform support
-- ✅ Native Claude and Codex format support
-
 ## Development
 
 ```bash

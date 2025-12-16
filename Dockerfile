@@ -1,22 +1,27 @@
-FROM python:3.11-slim
+# Build stage
+FROM golang:1.22-alpine AS builder
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    wget \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-# Install uv
-RUN pip install uv
+# Install build dependencies
+RUN apk add --no-cache git
 
-# Set working directory
+# Copy project files
+COPY . .
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o site2skillgo ./cmd/site2skillgo
+
+# Runtime stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates wget git
+
 WORKDIR /workspace
 
-# Copy the entire project
-COPY . /app/site2skill-go
-
-# Test installation from local path
-RUN uvx --from /app/site2skill-go site2skillgo --help
+# Copy binary from builder
+COPY --from=builder /app/site2skillgo /usr/local/bin/site2skillgo
 
 # Default command shows help
-CMD ["uvx", "--from", "/app/site2skill-go", "site2skillgo", "--help"]
+CMD ["site2skillgo", "--help"]
