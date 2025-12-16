@@ -13,10 +13,10 @@ RUN pip install uv
 WORKDIR /workspace
 
 # Copy the entire project
-COPY . /app/site2skill
+COPY . /app/site2skill-go
 
 # Test installation from local path
-RUN uvx --from /app/site2skill site2skill --help
+RUN uvx --from /app/site2skill-go site2skill --help
 
 # Default command shows help
-CMD ["uvx", "--from", "/app/site2skill", "site2skill", "--help"]
+CMD ["uvx", "--from", "/app/site2skill-go", "site2skill", "--help"]

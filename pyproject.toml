@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "site2skill"
+name = "site2skill-go"
 version = "0.1.0"
 description = "Turn any website into a Claude Skill"
 readme = "README.md"
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-site2skill = "site2skill.main:main"
+s2s-go = "site2skill.main:main"
 
 [tool.setuptools]
 packages = ["site2skill"]

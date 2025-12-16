@@ -1,4 +1,4 @@
-module github.com/f4ah6o/site2skill
+module github.com/f4ah6o/site2skill-go
 
 go 1.24.7
 
