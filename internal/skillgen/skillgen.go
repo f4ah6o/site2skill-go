@@ -1,3 +1,6 @@
+// Package skillgen provides skill structure generation functionality.
+// It creates skill directory layouts, generates SKILL.md manifests for different AI models,
+// and copies documentation files and search scripts into the skill structure.
 package skillgen
 
 import (
@@ -10,23 +13,34 @@ import (
 )
 
 const (
+	// FormatClaude specifies generation of a Claude-compatible skill.
 	FormatClaude = "claude"
-	FormatCodex  = "codex"
+	// FormatCodex specifies generation of an OpenAI Codex-compatible skill.
+	FormatCodex = "codex"
 )
 
+// templates embeds template files for SKILL.md and search scripts.
 //go:embed templates/*
 var templates embed.FS
 
+// Generator creates skill directory structures.
 type Generator struct {
 	format string
 }
 
+// New creates a new Generator configured for the specified format (claude or codex).
 func New(format string) *Generator {
 	return &Generator{
 		format: format,
 	}
 }
 
+// Generate creates a complete skill directory structure for the specified skill.
+// It creates docs/ and scripts/ directories, generates an appropriate SKILL.md manifest,
+// copies search scripts, and copies markdown documentation files.
+// skillName: name of the skill to generate
+// sourceDir: directory containing Markdown documentation files
+// outputBase: base output directory where the skill directory will be created
 func (g *Generator) Generate(skillName, sourceDir, outputBase string) error {
 	skillDir := filepath.Join(outputBase, skillName)
 	docsDir := filepath.Join(skillDir, "docs")

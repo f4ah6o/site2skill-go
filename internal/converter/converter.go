@@ -1,3 +1,6 @@
+// Package converter provides HTML to Markdown conversion functionality.
+// It extracts main content from HTML pages, cleans unwanted elements,
+// and converts to Markdown with YAML frontmatter containing metadata.
 package converter
 
 import (
@@ -11,10 +14,12 @@ import (
 	"github.com/JohannesKaufmann/html-to-markdown"
 )
 
+// Converter converts HTML content to Markdown with YAML frontmatter.
 type Converter struct {
 	mdConverter *md.Converter
 }
 
+// New creates a new Converter instance.
 func New() *Converter {
 	converter := md.NewConverter("", true, nil)
 	return &Converter{
@@ -22,6 +27,13 @@ func New() *Converter {
 	}
 }
 
+// ConvertFile converts an HTML file to Markdown with frontmatter.
+// It extracts the main content, removes unwanted elements, and adds YAML frontmatter
+// with the document title, source URL, and fetch timestamp.
+// htmlPath: path to the HTML file to convert
+// outputPath: path where the Markdown file will be written
+// sourceURL: URL where the HTML was fetched from
+// fetchedAt: ISO 3339 timestamp when the page was fetched
 func (c *Converter) ConvertFile(htmlPath, outputPath, sourceURL, fetchedAt string) error {
 	// Read HTML file
 	htmlContent, err := os.ReadFile(htmlPath)

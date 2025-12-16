@@ -1,3 +1,6 @@
+// Package validator provides skill validation functionality.
+// It checks skill directory structure, validates required files like SKILL.md,
+// ensures documentation is present, and analyzes skill size against platform limits.
 package validator
 
 import (
@@ -10,12 +13,19 @@ import (
 	"strings"
 )
 
+// Validator validates skill directory structures and content.
 type Validator struct{}
 
+// New creates a new Validator instance.
 func New() *Validator {
 	return &Validator{}
 }
 
+// Validate checks that a skill directory has the required structure and content.
+// It verifies the presence of SKILL.md, docs/ directory with Markdown files,
+// validates YAML frontmatter, and analyzes skill size.
+// skillDir: path to the skill directory to validate
+// Returns true if validation passes, false otherwise.
 func (v *Validator) Validate(skillDir string) bool {
 	log.Printf("Validating skill in: %s", skillDir)
 
@@ -110,8 +120,11 @@ func (v *Validator) Validate(skillDir string) bool {
 	return true
 }
 
+// fileSize represents the size and path of a file.
 type fileSize struct {
+	// size is the file size in bytes.
 	size int64
+	// path is the file path.
 	path string
 }
 

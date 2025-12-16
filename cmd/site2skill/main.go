@@ -1,3 +1,6 @@
+// Package main is the entry point for the site2skill tool.
+// site2skill converts website documentation into Claude/Codex AI skill packages
+// through a multi-step pipeline: fetch, convert, normalize, generate, validate, and package.
 package main
 
 import (
@@ -17,8 +20,10 @@ import (
 )
 
 const (
+	// FormatClaude specifies output format for Claude AI skill packages.
 	FormatClaude = "claude"
-	FormatCodex  = "codex"
+	// FormatCodex specifies output format for OpenAI Codex skill packages.
+	FormatCodex = "codex"
 )
 
 func main() {

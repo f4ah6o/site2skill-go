@@ -1,3 +1,6 @@
+// Package fetcher provides website crawling and downloading functionality.
+// It recursively crawls a website following same-domain links up to a maximum depth,
+// storing HTML files locally while respecting rate limits and skipping non-HTML resources.
 package fetcher
 
 import (
@@ -15,6 +18,7 @@ import (
 	"golang.org/x/net/html"
 )
 
+// Fetcher crawls and downloads website content.
 type Fetcher struct {
 	outputDir     string
 	domain        string
@@ -26,6 +30,7 @@ type Fetcher struct {
 	client        *http.Client
 }
 
+// New creates a new Fetcher instance configured to save downloads to outputDir.
 func New(outputDir string) *Fetcher {
 	return &Fetcher{
 		outputDir: outputDir,
@@ -37,6 +42,10 @@ func New(outputDir string) *Fetcher {
 	}
 }
 
+// Fetch downloads the website starting at targetURL, recursively following
+// same-domain links up to maxDepth. It validates the URL scheme and saves
+// all HTML files to the output directory in a structure preserving the original paths.
+// targetURL must be a valid http or https URL with a domain.
 func (f *Fetcher) Fetch(targetURL string) error {
 	parsedURL, err := url.Parse(targetURL)
 	if err != nil {
