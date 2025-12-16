@@ -44,24 +44,15 @@ func New(format string) *Generator {
 func (g *Generator) Generate(skillName, sourceDir, outputBase string) error {
 	skillDir := filepath.Join(outputBase, skillName)
 	docsDir := filepath.Join(skillDir, "docs")
-	scriptsDir := filepath.Join(skillDir, "scripts")
 
 	// Create directories
 	if err := os.MkdirAll(docsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create docs directory: %w", err)
 	}
-	if err := os.MkdirAll(scriptsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create scripts directory: %w", err)
-	}
 
 	// Create SKILL.md based on format
 	if err := g.createSkillMD(skillDir, skillName); err != nil {
 		return fmt.Errorf("failed to create SKILL.md: %w", err)
-	}
-
-	// Copy search script based on format
-	if err := g.copySearchScript(scriptsDir); err != nil {
-		return fmt.Errorf("failed to copy search script: %w", err)
 	}
 
 	// Copy markdown files
@@ -106,13 +97,16 @@ All documentation files are in the `+"`docs/`"+` directory as Markdown files.
 
 ## Search Tool
 
+Use the `+"`s2s-go search`"+` command to search through documentation:
+
 `+"```bash"+`
-python scripts/search_docs.py "<query>"
+s2s-go search "<query>" --skill-dir .
 `+"```"+`
 
 Options:
 - `+"`--json`"+` - Output as JSON
 - `+"`--max-results N`"+` - Limit results (default: 10)
+- `+"`--skill-dir PATH`"+` - Path to skill directory (default: current directory)
 
 ## Usage
 
@@ -140,19 +134,19 @@ This skill provides access to %s documentation for OpenAI Codex.
 ## Structure
 
 - `+"`docs/`"+`: Contains all documentation as Markdown files
-- `+"`scripts/`"+`: Helper scripts for searching documentation
 
 ## Search Documentation
 
-Use the search script to find relevant documentation:
+Use the `+"`s2s-go search`"+` command to find relevant documentation:
 
 `+"```bash"+`
-python scripts/search_docs.py "your query here"
+s2s-go search "your query here" --skill-dir .
 `+"```"+`
 
 Options:
 - `+"`--json`"+`: Output results as JSON
 - `+"`--max-results N`"+`: Limit number of results (default: 10)
+- `+"`--skill-dir PATH`"+`: Path to skill directory (default: current directory)
 
 ## Documentation Files
 
@@ -171,10 +165,10 @@ Each file in `+"`docs/`"+` contains:
 
 `+"```bash"+`
 # Search for authentication documentation
-python scripts/search_docs.py "authentication api key"
+s2s-go search "authentication api key" --skill-dir .
 
 # Get top 5 results as JSON
-python scripts/search_docs.py "payment methods" --json --max-results 5
+s2s-go search "payment methods" --json --max-results 5 --skill-dir .
 `+"```"+`
 `, strings.ToUpper(skillName), strings.ToUpper(skillName))
 }

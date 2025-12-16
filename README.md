@@ -112,12 +112,12 @@ The tool generates a skill directory with the following structure:
 ```
 <skill_name>/
 ├── SKILL.md           # Entry point with usage instructions
-├── docs/              # Markdown documentation files
-└── scripts/
-    └── search_docs.py # Search tool for documentation
+└── docs/              # Markdown documentation files
 ```
 
 Additionally, a `<skill_name>.skill` file (ZIP archive) is created.
+
+Use the built-in `s2s-go search` command to search through documentation files.
 
 ## Format Differences
 
@@ -135,14 +135,14 @@ Additionally, a `<skill_name>.skill` file (ZIP archive) is created.
 
 ## Search Tool
 
-Each generated skill includes a Python search script:
+Use the `s2s-go search` command to search through skill documentation:
 
 ```bash
 # Search documentation
-python scripts/search_docs.py "query"
+s2s-go search "query" --skill-dir .claude/skills/<skill_name>
 
 # JSON output with limited results
-python scripts/search_docs.py "query" --json --max-results 5
+s2s-go search "query" --json --max-results 5 --skill-dir .claude/skills/<skill_name>
 ```
 
 ## Python Version (Legacy)

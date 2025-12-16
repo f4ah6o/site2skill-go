@@ -15,6 +15,7 @@ import (
 	"github.com/f4ah6o/site2skill-go/internal/fetcher"
 	"github.com/f4ah6o/site2skill-go/internal/normalizer"
 	"github.com/f4ah6o/site2skill-go/internal/packager"
+	"github.com/f4ah6o/site2skill-go/internal/search"
 	"github.com/f4ah6o/site2skill-go/internal/skillgen"
 	"github.com/f4ah6o/site2skill-go/internal/validator"
 )
@@ -27,7 +28,54 @@ const (
 )
 
 func main() {
-	// Command line flags
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
+	}
+
+	subcommand := os.Args[1]
+
+	switch subcommand {
+	case "generate":
+		runGenerate(os.Args[2:])
+	case "search":
+		runSearch(os.Args[2:])
+	case "-h", "--help", "help":
+		printUsage()
+	default:
+		// Try to parse as old-style command (backwards compatibility)
+		// If first arg looks like a URL, treat as generate command
+		if len(os.Args) >= 3 && (len(subcommand) > 4 && subcommand[:4] == "http") {
+			log.Println("Note: Using legacy command format. Consider using 's2s-go generate' subcommand.")
+			runGenerate(os.Args[1:])
+		} else {
+			fmt.Fprintf(os.Stderr, "Unknown subcommand: %s\n\n", subcommand)
+			printUsage()
+			os.Exit(1)
+		}
+	}
+}
+
+func printUsage() {
+	fmt.Fprintf(os.Stderr, `s2s-go - Convert website documentation into AI skill packages
+
+Usage:
+  s2s-go generate <URL> <SKILL_NAME> [options]
+  s2s-go search <QUERY> [options]
+  s2s-go help
+
+Commands:
+  generate    Generate a skill package from a documentation website
+  search      Search through skill documentation files
+  help        Show this help message
+
+Run 's2s-go <command> -h' for more information on a specific command.
+`)
+}
+
+func runGenerate(args []string) {
+	fs := flag.NewFlagSet("generate", flag.ExitOnError)
+
 	var (
 		url          string
 		skillName    string
@@ -39,26 +87,26 @@ func main() {
 		format       string
 	)
 
-	flag.StringVar(&url, "url", "", "URL of the documentation site (required)")
-	flag.StringVar(&skillName, "name", "", "Name of the skill (required)")
-	flag.StringVar(&output, "output", ".claude/skills", "Base output directory for skill structure")
-	flag.StringVar(&skillOutput, "skill-output", ".", "Output directory for .skill file")
-	flag.StringVar(&tempDir, "temp-dir", "build", "Temporary directory for processing")
-	flag.BoolVar(&skipFetch, "skip-fetch", false, "Skip the download step (use existing files in temp dir)")
-	flag.BoolVar(&clean, "clean", false, "Clean up temporary directory after completion")
-	flag.StringVar(&format, "format", "claude", "Output format: claude or codex")
+	fs.StringVar(&url, "url", "", "URL of the documentation site (required)")
+	fs.StringVar(&skillName, "name", "", "Name of the skill (required)")
+	fs.StringVar(&output, "output", ".claude/skills", "Base output directory for skill structure")
+	fs.StringVar(&skillOutput, "skill-output", ".", "Output directory for .skill file")
+	fs.StringVar(&tempDir, "temp-dir", "build", "Temporary directory for processing")
+	fs.BoolVar(&skipFetch, "skip-fetch", false, "Skip the download step (use existing files in temp dir)")
+	fs.BoolVar(&clean, "clean", false, "Clean up temporary directory after completion")
+	fs.StringVar(&format, "format", "claude", "Output format: claude or codex")
 
-	flag.Parse()
+	fs.Parse(args)
 
 	// Handle positional arguments if provided
-	if flag.NArg() >= 2 {
-		url = flag.Arg(0)
-		skillName = flag.Arg(1)
+	if fs.NArg() >= 2 {
+		url = fs.Arg(0)
+		skillName = fs.Arg(1)
 	}
 
 	if url == "" || skillName == "" {
-		fmt.Fprintf(os.Stderr, "Usage: s2s-go <URL> <SKILL_NAME> [options]\n\n")
-		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "Usage: s2s-go generate <URL> <SKILL_NAME> [options]\n\n")
+		fs.PrintDefaults()
 		os.Exit(1)
 	}
 
@@ -67,6 +115,10 @@ func main() {
 		log.Fatalf("Invalid format: %s. Must be 'claude' or 'codex'", format)
 	}
 
+	executeGenerate(url, skillName, output, skillOutput, tempDir, skipFetch, clean, format)
+}
+
+func executeGenerate(url, skillName, output, skillOutput, tempDir string, skipFetch, clean bool, format string) {
 	// Setup directories
 	tempDownloadDir := filepath.Join(tempDir, "download")
 	tempMdDir := filepath.Join(tempDir, "markdown")
@@ -240,4 +292,67 @@ func sanitizeFilename(name string) string {
 		}
 	}
 	return result
+}
+
+func runSearch(args []string) {
+	fs := flag.NewFlagSet("search", flag.ExitOnError)
+
+	var (
+		skillDir   string
+		maxResults int
+		jsonOutput bool
+	)
+
+	fs.StringVar(&skillDir, "skill-dir", ".", "Path to the skill directory")
+	fs.IntVar(&maxResults, "max-results", 10, "Maximum number of results to display")
+	fs.BoolVar(&jsonOutput, "json", false, "Output results as JSON")
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, `Usage: s2s-go search <QUERY> [options]
+
+Search through skill documentation files for keywords.
+
+Arguments:
+  QUERY       Search query (space-separated keywords with OR logic)
+
+Options:
+`)
+		fs.PrintDefaults()
+		fmt.Fprintf(os.Stderr, `
+Examples:
+  s2s-go search "authentication"
+  s2s-go search "api endpoint" --max-results 5
+  s2s-go search "database" --json --skill-dir ./my-skill
+`)
+	}
+
+	fs.Parse(args)
+
+	if fs.NArg() < 1 {
+		fmt.Fprintf(os.Stderr, "Error: search query is required\n\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	query := fs.Arg(0)
+
+	opts := search.SearchOptions{
+		SkillDir:   skillDir,
+		Query:      query,
+		MaxResults: maxResults,
+		JSONOutput: jsonOutput,
+	}
+
+	results, err := search.SearchDocs(opts)
+	if err != nil {
+		log.Fatalf("Search failed: %v", err)
+	}
+
+	if jsonOutput {
+		if err := search.FormatJSON(results); err != nil {
+			log.Fatalf("Failed to format JSON output: %v", err)
+		}
+	} else {
+		search.FormatResults(results, query)
+	}
 }
