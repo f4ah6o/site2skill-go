@@ -77,7 +77,7 @@ def fetch_site(url: str, output_dir: str) -> None:
         "--convert-links",
         # Use reject instead of accept to allow extensionless URLs (which are often HTML)
         "--reject=css,js,png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot,zip,tar,gz,pdf,xml,json,txt",
-        "--user-agent=site2skill/0.1 (+https://github.com/laiso/site2skill)",
+        "--user-agent=site2skill/0.1 (+https://github.com/f4ah6o/site2skill)",
         "--execute", "robots=on", 
         "--wait=1",
         "--random-wait",

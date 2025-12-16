@@ -124,7 +124,7 @@ func (f *Fetcher) crawl(targetURL, crawlDir string, depth int) error {
 	if err != nil {
 		return nil
 	}
-	req.Header.Set("User-Agent", "site2skill/1.0 (+https://github.com/laiso/site2skill)")
+	req.Header.Set("User-Agent", "site2skill/1.0 (+https://github.com/f4ah6o/site2skill)")
 
 	// Be polite: wait 1 second between requests
 	time.Sleep(1 * time.Second)

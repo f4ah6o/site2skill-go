@@ -11,12 +11,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/laiso/site2skill/internal/converter"
-	"github.com/laiso/site2skill/internal/fetcher"
-	"github.com/laiso/site2skill/internal/normalizer"
-	"github.com/laiso/site2skill/internal/packager"
-	"github.com/laiso/site2skill/internal/skillgen"
-	"github.com/laiso/site2skill/internal/validator"
+	"github.com/f4ah6o/site2skill/internal/converter"
+	"github.com/f4ah6o/site2skill/internal/fetcher"
+	"github.com/f4ah6o/site2skill/internal/normalizer"
+	"github.com/f4ah6o/site2skill/internal/packager"
+	"github.com/f4ah6o/site2skill/internal/skillgen"
+	"github.com/f4ah6o/site2skill/internal/validator"
 )
 
 const (
