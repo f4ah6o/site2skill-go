@@ -1,5 +1,5 @@
-// Package main is the entry point for the s2s-go tool.
-// s2s-go converts website documentation into Claude/Codex AI skill packages
+// Package main is the entry point for the site2skillgo tool.
+// site2skillgo converts website documentation into Claude/Codex AI skill packages
 // through a multi-step pipeline: fetch, convert, normalize, generate, validate, and package.
 package main
 
@@ -46,7 +46,7 @@ func main() {
 		// Try to parse as old-style command (backwards compatibility)
 		// If first arg looks like a URL, treat as generate command
 		if len(os.Args) >= 3 && (len(subcommand) > 4 && subcommand[:4] == "http") {
-			log.Println("Note: Using legacy command format. Consider using 's2s-go generate' subcommand.")
+			log.Println("Note: Using legacy command format. Consider using 'site2skillgo generate' subcommand.")
 			runGenerate(os.Args[1:])
 		} else {
 			fmt.Fprintf(os.Stderr, "Unknown subcommand: %s\n\n", subcommand)
@@ -57,19 +57,32 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `s2s-go - Convert website documentation into AI skill packages
+	fmt.Fprintf(os.Stderr, `site2skillgo - Convert website documentation into AI skill packages
+
+site2skillgo is a tool that scrapes documentation websites, converts them to Markdown,
+and packages them as Agent Skills (ZIP format) for use with Claude or Codex.
 
 Usage:
-  s2s-go generate <URL> <SKILL_NAME> [options]
-  s2s-go search <QUERY> [options]
-  s2s-go help
+  site2skillgo generate <URL> <SKILL_NAME> [options]
+  site2skillgo search <QUERY> [options]
+  site2skillgo help
 
 Commands:
   generate    Generate a skill package from a documentation website
   search      Search through skill documentation files
   help        Show this help message
 
-Run 's2s-go <command> -h' for more information on a specific command.
+Examples:
+  site2skillgo generate https://docs.example.com myskill
+  site2skillgo generate https://stripe.com/docs/api stripe --format codex
+  site2skillgo search "authentication" --skill-dir .claude/skills/myskill
+
+For more information on a command, use:
+  site2skillgo <command> -h
+
+Supported Formats:
+  claude      Claude Agent Skills (default, optimized for Claude SDK)
+  codex       OpenAI Codex Skills (optimized for OpenAI Codex)
 `)
 }
 
@@ -95,6 +108,35 @@ func runGenerate(args []string) {
 	fs.BoolVar(&skipFetch, "skip-fetch", false, "Skip the download step (use existing files in temp dir)")
 	fs.BoolVar(&clean, "clean", false, "Clean up temporary directory after completion")
 	fs.StringVar(&format, "format", "claude", "Output format: claude or codex")
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, `Usage: site2skillgo generate <URL> <SKILL_NAME> [options]
+
+Generate a skill package from a documentation website.
+
+Arguments:
+  URL           URL of the documentation site to scrape
+  SKILL_NAME    Name for the generated skill
+
+Options:
+`)
+		fs.PrintDefaults()
+		fmt.Fprintf(os.Stderr, `
+Pipeline Steps:
+  1. Fetch      - Download documentation site recursively
+  2. Convert    - Convert HTML pages to Markdown
+  3. Normalize  - Clean up links and formatting
+  4. Generate   - Create skill structure
+  5. Validate   - Check skill structure and size limits
+  6. Package    - Create .skill file (ZIP archive)
+
+Examples:
+  site2skillgo generate https://docs.example.com example
+  site2skillgo generate https://docs.python.org/3/ python3 --format claude
+  site2skillgo generate https://stripe.com/docs/api stripe --format codex --output ./my-skills
+  site2skillgo generate https://docs.example.com example --skip-fetch --clean
+`)
+	}
 
 	fs.Parse(args)
 
@@ -308,7 +350,7 @@ func runSearch(args []string) {
 	fs.BoolVar(&jsonOutput, "json", false, "Output results as JSON")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: s2s-go search <QUERY> [options]
+		fmt.Fprintf(os.Stderr, `Usage: site2skillgo search <QUERY> [options]
 
 Search through skill documentation files for keywords.
 
@@ -320,9 +362,9 @@ Options:
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  s2s-go search "authentication"
-  s2s-go search "api endpoint" --max-results 5
-  s2s-go search "database" --json --skill-dir ./my-skill
+  site2skillgo search "authentication"
+  site2skillgo search "api endpoint" --max-results 5
+  site2skillgo search "database" --json --skill-dir ./my-skill
 `)
 	}
 
