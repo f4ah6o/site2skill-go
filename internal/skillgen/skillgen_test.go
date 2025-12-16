@@ -17,6 +17,10 @@ func TestNewGenerator(t *testing.T) {
 			name:   "codex format",
 			format: FormatCodex,
 		},
+		{
+			name:   "both format",
+			format: FormatBoth,
+		},
 	}
 
 	for _, tt := range tests {
