@@ -4,6 +4,7 @@
 package converter
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -11,9 +12,8 @@ import (
 	"regexp"
 	"strings"
 
+	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/JohannesKaufmann/html-to-markdown"
-	"golang.org/x/net/html"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/htmlindex"
 	"golang.org/x/text/transform"
@@ -166,7 +166,8 @@ func decodeHTML(body []byte) string {
 	return string(body)
 }
 
-// getEncodingFromMeta extracts charset from HTML meta tag.
+// getEncodingFromMeta extracts charset from HTML meta tag using regex on raw bytes.
+// This avoids parsing the HTML with incorrect encoding which would corrupt the content.
 func getEncodingFromMeta(body []byte) encoding.Encoding {
 	// Quick check for BOM first
 	if len(body) >= 3 && body[0] == 0xEF && body[1] == 0xBB && body[2] == 0xBF {
@@ -174,56 +175,49 @@ func getEncodingFromMeta(body []byte) encoding.Encoding {
 		return nil // UTF-8 is default
 	}
 
-	// Parse HTML to find meta charset
-	doc, err := html.Parse(strings.NewReader(string(body)))
-	if err != nil {
-		return nil
-	}
-
-	var findMeta func(*html.Node) encoding.Encoding
-	findMeta = func(n *html.Node) encoding.Encoding {
-		if n.Type == html.ElementNode && n.Data == "meta" {
-			var charset string
-			for _, attr := range n.Attr {
-				if attr.Key == "charset" {
-					charset = attr.Val
-					break
-				}
-				if attr.Key == "http-equiv" && strings.ToLower(attr.Val) == "content-type" {
-					// Look for content attribute
-					for _, a := range n.Attr {
-						if a.Key == "content" {
-							re := regexp.MustCompile(`charset=([^\s;]+)`)
-							matches := re.FindStringSubmatch(a.Val)
-							if len(matches) > 1 {
-								charset = strings.Trim(matches[1], `"'`)
-							}
-							break
-						}
-					}
-				}
-			}
-			if charset != "" {
-				enc, err := htmlindex.Get(charset)
-				if err == nil {
-					return enc
-				}
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			if enc := findMeta(c); enc != nil {
+	// Use regex to find charset in raw bytes (works for ASCII-compatible encodings)
+	// Pattern 1: <meta charset="...">
+	charsetRe := regexp.MustCompile(`(?i)<meta[^>]+charset=["']?([^"'\s>]+)`)
+	if matches := charsetRe.Find(body); matches != nil {
+		submatches := charsetRe.FindSubmatch(body)
+		if len(submatches) > 1 {
+			charset := string(submatches[1])
+			if enc, err := htmlindex.Get(charset); err == nil {
 				return enc
 			}
 		}
-		return nil
 	}
 
-	return findMeta(doc)
+	// Pattern 2: <meta http-equiv="Content-Type" content="text/html; charset=...">
+	contentTypeRe := regexp.MustCompile(`(?i)<meta[^>]+http-equiv=["']?Content-Type["']?[^>]+content=["']?[^"']*charset=([^"'\s;>]+)`)
+	if matches := contentTypeRe.Find(body); matches != nil {
+		submatches := contentTypeRe.FindSubmatch(body)
+		if len(submatches) > 1 {
+			charset := string(submatches[1])
+			if enc, err := htmlindex.Get(charset); err == nil {
+				return enc
+			}
+		}
+	}
+
+	// Pattern 3: content attribute before http-equiv (reverse order)
+	contentTypeRe2 := regexp.MustCompile(`(?i)<meta[^>]+content=["']?[^"']*charset=([^"'\s;>]+)[^>]+http-equiv=["']?Content-Type["']?`)
+	if matches := contentTypeRe2.Find(body); matches != nil {
+		submatches := contentTypeRe2.FindSubmatch(body)
+		if len(submatches) > 1 {
+			charset := string(submatches[1])
+			if enc, err := htmlindex.Get(charset); err == nil {
+				return enc
+			}
+		}
+	}
+
+	return nil
 }
 
 // decodeWithEncoding decodes bytes using specified encoding.
 func decodeWithEncoding(body []byte, enc encoding.Encoding) (string, error) {
-	reader := transform.NewReader(strings.NewReader(string(body)), enc.NewDecoder())
+	reader := transform.NewReader(bytes.NewReader(body), enc.NewDecoder())
 	decoded, err := io.ReadAll(reader)
 	if err != nil {
 		return "", err

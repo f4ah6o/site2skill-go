@@ -29,6 +29,7 @@ venv/
 .doc/
 
 # Go
+s2s-go
 bin/
 *.exe
 *.exe~
