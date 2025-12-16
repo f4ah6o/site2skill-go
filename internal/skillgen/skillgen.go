@@ -4,7 +4,6 @@
 package skillgen
 
 import (
-	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -19,9 +18,6 @@ const (
 	FormatCodex = "codex"
 )
 
-// templates embeds template files for SKILL.md and search scripts.
-//go:embed templates/*
-var templates embed.FS
 
 // Generator creates skill directory structures.
 type Generator struct {
@@ -171,28 +167,6 @@ site2skillgo search "authentication api key" --skill-dir .
 site2skillgo search "payment methods" --json --max-results 5 --skill-dir .
 `+"```"+`
 `, strings.ToUpper(skillName), strings.ToUpper(skillName))
-}
-
-func (g *Generator) copySearchScript(scriptsDir string) error {
-	var templateName string
-	if g.format == FormatCodex {
-		templateName = "templates/search_docs_codex.py"
-	} else {
-		templateName = "templates/search_docs_claude.py"
-	}
-
-	content, err := templates.ReadFile(templateName)
-	if err != nil {
-		return fmt.Errorf("failed to read template: %w", err)
-	}
-
-	destPath := filepath.Join(scriptsDir, "search_docs.py")
-	if err := os.WriteFile(destPath, content, 0755); err != nil {
-		return err
-	}
-
-	log.Printf("Installed search_docs.py (%s format)", g.format)
-	return nil
 }
 
 func (g *Generator) copyMarkdownFiles(sourceDir, docsDir string) error {
