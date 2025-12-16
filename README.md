@@ -1,55 +1,105 @@
 # site2skill
 
-**Turn any documentation website into a Claude Agent Skill.**
+**Turn any documentation website into a Claude or Codex Agent Skill.**
 
-`site2skill` is a tool that scrapes a documentation website, converts it to Markdown, and packages it as a Claude [Agent Skill](https://www.anthropic.com/news/skills) (ZIP format) with a proper `SKILL.md` entry point.
+`site2skill` is a tool that scrapes a documentation website, converts it to Markdown, and packages it as an Agent Skill (ZIP format) with proper entry points and search functionality.
 
-Agent Skills are dynamically loaded knowledge modules that Claude uses on demand. They work across Claude Code, Claude apps, and the API.
+Agent Skills are dynamically loaded knowledge modules that AI assistants use on demand. This tool now supports both:
+- **Claude Agent Skills** - For Claude Code, Claude apps, and the API
+- **Codex Skills** - For OpenAI Codex and compatible systems
+
+## Features
+
+- 🚀 **Rewritten in Go** - Fast, single binary, no dependencies
+- 🔄 **Dual Format Support** - Generate skills for both Claude and Codex
+- 🌐 **Built-in Web Crawler** - No need for wget
+- 📝 **Smart HTML to Markdown Conversion** - Clean, readable documentation
+- 🔍 **Full-text Search** - Embedded search script in each skill
+- ✅ **Validation** - Automatic size and structure checks
+
+## Installation
+
+### From Source
+
+```bash
+# Clone the repository
+git clone https://github.com/laiso/site2skill
+cd site2skill
+
+# Build the binary
+go build -o site2skill ./cmd/site2skill
+
+# Optional: Install globally
+go install ./cmd/site2skill
+```
+
+### Pre-built Binaries
+
+Download the latest release from the [releases page](https://github.com/laiso/site2skill/releases).
 
 ## Usage
 
-You can run this tool directly using `uvx` (requires `uv` installed):
+### Basic Usage
 
 ```bash
-# General usage
-uvx --from git+https://github.com/laiso/site2skill site2skill <URL> <SKILL_NAME>
+# Generate a Claude skill
+site2skill https://docs.example.com myskill
 
-# Example: Create a skill for PAY.JP
-uvx --from git+https://github.com/laiso/site2skill site2skill https://docs.pay.jp/v1/ payjp
+# Generate a Codex skill
+site2skill https://docs.example.com myskill --format codex
 ```
 
-### CLI Options
+### Full Options
 
-```
+```bash
 site2skill <URL> <SKILL_NAME> [options]
 
 Options:
-  --output, -o       Base output directory for skill structure (default: .claude/skills)
-  --skill-output     Output directory for .skill file (default: .)
-  --temp-dir         Temporary directory for processing (default: build)
-  --skip-fetch       Skip the download step (use existing files in temp dir)
-  --clean            Clean up temporary directory after completion
+  -url string
+        URL of the documentation site (required)
+  -name string
+        Name of the skill (required)
+  -format string
+        Output format: claude or codex (default "claude")
+  -output string
+        Base output directory for skill structure (default ".claude/skills")
+  -skill-output string
+        Output directory for .skill file (default ".")
+  -temp-dir string
+        Temporary directory for processing (default "build")
+  -skip-fetch
+        Skip the download step (use existing files in temp dir)
+  -clean
+        Clean up temporary directory after completion
 ```
 
-### Requirements
+### Examples
 
-*   **Python 3.10+**
-*   **wget**: Must be installed and available in your PATH.
-    *   macOS: `brew install wget`
-    *   Linux: `apt install wget`
-    *   Windows: Use WSL, or install via `choco install wget` / `scoop install wget`
+```bash
+# Create a Claude skill for PAY.JP documentation
+site2skill https://docs.pay.jp/v1/ payjp
+
+# Create a Codex skill for Stripe API
+site2skill https://stripe.com/docs/api stripe --format codex
+
+# Custom output directory
+site2skill https://docs.python.org/3/ python3 --output ./my-skills --clean
+
+# Skip fetching (reuse downloaded files)
+site2skill https://docs.example.com example --skip-fetch
+```
 
 ## How it works
 
-1.  **Fetch**: Downloads the documentation site recursively using `wget`.
-2.  **Convert**: Converts HTML pages to Markdown using `beautifulsoup4` and `markdownify`.
-3.  **Normalize**: Cleans up links and formatting.
-4.  **Validate**: Checks the skill structure and size limits.
-5.  **Package**: Generates `SKILL.md` and zips everything into a `.skill` file.
+1. **Fetch**: Downloads the documentation site recursively using built-in HTTP crawler
+2. **Convert**: Converts HTML pages to Markdown using smart content extraction
+3. **Normalize**: Cleans up links and formatting, converts relative URLs to absolute
+4. **Validate**: Checks the skill structure and size limits (8MB for Claude)
+5. **Package**: Generates SKILL.md and zips everything into a `.skill` file
 
-## Output
+## Output Structure
 
-The tool generates a skill directory in `.claude/skills/<skill_name>/` containing:
+The tool generates a skill directory with the following structure:
 
 ```
 <skill_name>/
@@ -59,17 +109,59 @@ The tool generates a skill directory in `.claude/skills/<skill_name>/` containin
     └── search_docs.py # Search tool for documentation
 ```
 
-Additionally, a `<skill_name>.skill` file (ZIP archive) is created in the current directory.
+Additionally, a `<skill_name>.skill` file (ZIP archive) is created.
 
-### Search Tool
+## Format Differences
 
-Each generated skill includes a search script:
+### Claude Format
+- Optimized for Claude Agent SDK
+- YAML frontmatter in SKILL.md with name and description
+- Colored terminal output in search script
+- Context-aware search results
+
+### Codex Format
+- Optimized for OpenAI Codex
+- Plain markdown structure
+- JSON output support
+- Simplified search interface
+
+## Search Tool
+
+Each generated skill includes a Python search script:
 
 ```bash
-python scripts/search_docs.py "<query>"
-python scripts/search_docs.py "<query>" --json --max-results 5
+# Search documentation
+python scripts/search_docs.py "query"
+
+# JSON output with limited results
+python scripts/search_docs.py "query" --json --max-results 5
+```
+
+## Python Version (Legacy)
+
+The original Python version is available in the `python-legacy` branch. The Go version offers:
+- ✅ Single binary distribution
+- ✅ No external dependencies (no wget required)
+- ✅ Faster execution
+- ✅ Better cross-platform support
+- ✅ Native Claude and Codex format support
+
+## Development
+
+```bash
+# Run tests
+go test ./...
+
+# Build for all platforms
+GOOS=linux GOARCH=amd64 go build -o site2skill-linux-amd64 ./cmd/site2skill
+GOOS=darwin GOARCH=amd64 go build -o site2skill-darwin-amd64 ./cmd/site2skill
+GOOS=windows GOARCH=amd64 go build -o site2skill-windows-amd64.exe ./cmd/site2skill
 ```
 
 ## License
 
 MIT
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

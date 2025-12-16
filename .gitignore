@@ -27,3 +27,21 @@ wheels/
 .venv/
 venv/
 .doc/
+
+# Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Build artifacts
+*.skill
+build/
+
+# Temporary files
+temp_docs/

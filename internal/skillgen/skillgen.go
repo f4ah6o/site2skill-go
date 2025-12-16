@@ -1,0 +1,247 @@
+package skillgen
+
+import (
+	"embed"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+const (
+	FormatClaude = "claude"
+	FormatCodex  = "codex"
+)
+
+//go:embed templates/*
+var templates embed.FS
+
+type Generator struct {
+	format string
+}
+
+func New(format string) *Generator {
+	return &Generator{
+		format: format,
+	}
+}
+
+func (g *Generator) Generate(skillName, sourceDir, outputBase string) error {
+	skillDir := filepath.Join(outputBase, skillName)
+	docsDir := filepath.Join(skillDir, "docs")
+	scriptsDir := filepath.Join(skillDir, "scripts")
+
+	// Create directories
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create docs directory: %w", err)
+	}
+	if err := os.MkdirAll(scriptsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create scripts directory: %w", err)
+	}
+
+	// Create SKILL.md based on format
+	if err := g.createSkillMD(skillDir, skillName); err != nil {
+		return fmt.Errorf("failed to create SKILL.md: %w", err)
+	}
+
+	// Copy search script based on format
+	if err := g.copySearchScript(scriptsDir); err != nil {
+		return fmt.Errorf("failed to copy search script: %w", err)
+	}
+
+	// Copy markdown files
+	if err := g.copyMarkdownFiles(sourceDir, docsDir); err != nil {
+		return fmt.Errorf("failed to copy markdown files: %w", err)
+	}
+
+	return nil
+}
+
+func (g *Generator) createSkillMD(skillDir, skillName string) error {
+	skillMDPath := filepath.Join(skillDir, "SKILL.md")
+
+	var content string
+	if g.format == FormatCodex {
+		content = g.getCodexSkillContent(skillName)
+	} else {
+		content = g.getClaudeSkillContent(skillName)
+	}
+
+	if err := os.WriteFile(skillMDPath, []byte(content), 0644); err != nil {
+		return err
+	}
+
+	log.Printf("Created %s", skillMDPath)
+	return nil
+}
+
+func (g *Generator) getClaudeSkillContent(skillName string) string {
+	return fmt.Sprintf(`---
+name: %s
+description: %s documentation assistant
+---
+
+# %s Skill
+
+This skill provides access to %s documentation.
+
+## Documentation
+
+All documentation files are in the `+"`docs/`"+` directory as Markdown files.
+
+## Search Tool
+
+`+"```bash"+`
+python scripts/search_docs.py "<query>"
+`+"```"+`
+
+Options:
+- `+"`--json`"+` - Output as JSON
+- `+"`--max-results N`"+` - Limit results (default: 10)
+
+## Usage
+
+1. Search or read files in `+"`docs/`"+` for relevant information
+2. Each file has frontmatter with `+"`source_url`"+` and `+"`fetched_at`"+`
+3. Always cite the source URL in responses
+4. Note the fetch date - documentation may have changed
+
+## Response Format
+
+`+"```"+`
+[Answer based on documentation]
+
+**Source:** [source_url]
+**Fetched:** [fetched_at]
+`+"```"+`
+`, skillName, strings.ToUpper(skillName), strings.ToUpper(skillName), strings.ToUpper(skillName))
+}
+
+func (g *Generator) getCodexSkillContent(skillName string) string {
+	return fmt.Sprintf(`# %s Documentation Skill
+
+This skill provides access to %s documentation for OpenAI Codex.
+
+## Structure
+
+- `+"`docs/`"+`: Contains all documentation as Markdown files
+- `+"`scripts/`"+`: Helper scripts for searching documentation
+
+## Search Documentation
+
+Use the search script to find relevant documentation:
+
+`+"```bash"+`
+python scripts/search_docs.py "your query here"
+`+"```"+`
+
+Options:
+- `+"`--json`"+`: Output results as JSON
+- `+"`--max-results N`"+`: Limit number of results (default: 10)
+
+## Documentation Files
+
+Each file in `+"`docs/`"+` contains:
+- **Frontmatter**: YAML metadata with `+"`title`"+`, `+"`source_url`"+`, and `+"`fetched_at`"+`
+- **Content**: Markdown-formatted documentation
+
+## Best Practices
+
+1. Search for relevant topics using the search script
+2. Read the full documentation file for context
+3. Always reference the source URL when providing information
+4. Note the fetch date as documentation may have been updated
+
+## Example Usage
+
+`+"```bash"+`
+# Search for authentication documentation
+python scripts/search_docs.py "authentication api key"
+
+# Get top 5 results as JSON
+python scripts/search_docs.py "payment methods" --json --max-results 5
+`+"```"+`
+`, strings.ToUpper(skillName), strings.ToUpper(skillName))
+}
+
+func (g *Generator) copySearchScript(scriptsDir string) error {
+	var templateName string
+	if g.format == FormatCodex {
+		templateName = "templates/search_docs_codex.py"
+	} else {
+		templateName = "templates/search_docs_claude.py"
+	}
+
+	content, err := templates.ReadFile(templateName)
+	if err != nil {
+		return fmt.Errorf("failed to read template: %w", err)
+	}
+
+	destPath := filepath.Join(scriptsDir, "search_docs.py")
+	if err := os.WriteFile(destPath, content, 0755); err != nil {
+		return err
+	}
+
+	log.Printf("Installed search_docs.py (%s format)", g.format)
+	return nil
+}
+
+func (g *Generator) copyMarkdownFiles(sourceDir, docsDir string) error {
+	if sourceDir == "" {
+		return fmt.Errorf("source directory is empty")
+	}
+
+	if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+		return fmt.Errorf("source directory does not exist: %s", sourceDir)
+	}
+
+	fileCount := 0
+	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && filepath.Ext(path) == ".md" {
+			fileName := filepath.Base(path)
+			dstPath := filepath.Join(docsDir, fileName)
+
+			// Security check
+			absDstPath, err := filepath.Abs(dstPath)
+			if err != nil {
+				return err
+			}
+			absDocsDir, err := filepath.Abs(docsDir)
+			if err != nil {
+				return err
+			}
+
+			relPath, err := filepath.Rel(absDocsDir, absDstPath)
+			if err != nil || strings.HasPrefix(relPath, "..") {
+				log.Printf("Warning: skipping potential path traversal file: %s", fileName)
+				return nil
+			}
+
+			// Copy file
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("failed to read %s: %w", path, err)
+			}
+
+			if err := os.WriteFile(dstPath, content, 0644); err != nil {
+				return fmt.Errorf("failed to write %s: %w", dstPath, err)
+			}
+
+			fileCount++
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Copied %d files to docs/", fileCount)
+	return nil
+}
