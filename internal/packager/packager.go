@@ -1,3 +1,6 @@
+// Package packager provides skill packaging functionality.
+// It creates .skill files (ZIP archives) from a skill directory structure,
+// preserving the directory hierarchy and file metadata.
 package packager
 
 import (
@@ -10,12 +13,19 @@ import (
 	"strings"
 )
 
+// Packager creates .skill files from skill directories.
 type Packager struct{}
 
+// New creates a new Packager instance.
 func New() *Packager {
 	return &Packager{}
 }
 
+// Package creates a .skill file (ZIP archive) from the skill directory.
+// It recursively includes all files and directories from skillDir.
+// skillDir: path to the skill directory to package
+// outputDir: directory where the .skill file will be created
+// Returns the path to the created .skill file or an error.
 func (p *Packager) Package(skillDir, outputDir string) (string, error) {
 	// Check if skill directory exists
 	if info, err := os.Stat(skillDir); os.IsNotExist(err) || !info.IsDir() {

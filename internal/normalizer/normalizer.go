@@ -1,3 +1,6 @@
+// Package normalizer provides Markdown file normalization functionality.
+// It processes YAML frontmatter, resolves relative links to absolute URLs,
+// and reconstructs normalized Markdown files with updated metadata.
 package normalizer
 
 import (
@@ -10,18 +13,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Normalizer processes and normalizes Markdown files.
 type Normalizer struct{}
 
+// New creates a new Normalizer instance.
 func New() *Normalizer {
 	return &Normalizer{}
 }
 
+// Frontmatter represents the YAML frontmatter metadata of a Markdown file.
 type Frontmatter struct {
-	Title      string `yaml:"title"`
-	SourceURL  string `yaml:"source_url"`
-	FetchedAt  string `yaml:"fetched_at"`
+	// Title is the document title.
+	Title string `yaml:"title"`
+	// SourceURL is the original URL where the document was fetched from.
+	SourceURL string `yaml:"source_url"`
+	// FetchedAt is the ISO 3339 timestamp when the document was fetched.
+	FetchedAt string `yaml:"fetched_at"`
 }
 
+// NormalizeFile reads a Markdown file, extracts its YAML frontmatter,
+// resolves all relative links to absolute URLs using the source URL,
+// and writes the normalized content to outputPath.
+// inputPath: path to the Markdown file to normalize
+// outputPath: path where the normalized Markdown file will be written
 func (n *Normalizer) NormalizeFile(inputPath, outputPath string) error {
 	content, err := os.ReadFile(inputPath)
 	if err != nil {
