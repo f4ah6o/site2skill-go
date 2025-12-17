@@ -1,0 +1,99 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "site/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for site changes
+        id: check
+        run: |
+          if [ ! -d "site" ]; then
+            echo "Error: site directory not found"
+            exit 1
+          fi
+          echo "site_exists=true" >> $GITHUB_OUTPUT
+
+      - name: Prepare gh-pages content
+        run: |
+          # Create a temporary directory for gh-pages content
+          mkdir -p /tmp/gh-pages-content
+
+          # Copy site files (excluding server.go which is for local testing only)
+          cp -r site/* /tmp/gh-pages-content/
+          rm -f /tmp/gh-pages-content/server.go
+
+          # Copy workflow from site/.github if it exists
+          if [ -d "site/.github" ]; then
+            mkdir -p /tmp/gh-pages-content/.github
+            cp -r site/.github/* /tmp/gh-pages-content/.github/
+          fi
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages-branch
+
+      - name: Update gh-pages content
+        run: |
+          cd gh-pages-branch
+
+          # Remove all files except .git and .github
+          find . -maxdepth 1 ! -name '.git' ! -name '.github' ! -name '.' -exec rm -rf {} +
+
+          # Copy prepared content
+          cp -r /tmp/gh-pages-content/* .
+
+          # Copy .github if exists in prepared content
+          if [ -d "/tmp/gh-pages-content/.github" ]; then
+            mkdir -p .github
+            cp -r /tmp/gh-pages-content/.github/* .github/
+          fi
+
+      - name: Check for changes
+        id: changes
+        run: |
+          cd gh-pages-branch
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: gh-pages-branch
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: update-gh-pages
+          base: gh-pages
+          title: "Update crawler verification site"
+          body: |
+            This PR updates the gh-pages branch with the latest changes from `site/` directory.
+
+            **Changes triggered by:** ${{ github.event_name }}
+            **Source commit:** ${{ github.sha }}
+          commit-message: "Update crawler verification site"
+          delete-branch: true
+
+      - name: No changes detected
+        if: steps.changes.outputs.has_changes == 'false'
+        run: echo "No changes detected in site/ directory"
