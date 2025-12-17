@@ -27,6 +27,21 @@ func main() {
 	fs := http.FileServer(http.Dir(absDir))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%s %s", r.Method, r.URL.Path)
+
+		// Redirect root to /site2skill-go/
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/site2skill-go/", http.StatusFound)
+			return
+		}
+
+		// Handle /site2skill-go/ prefix
+		prefix := "/site2skill-go"
+		if len(r.URL.Path) >= len(prefix) && r.URL.Path[:len(prefix)] == prefix {
+			http.StripPrefix(prefix, fs).ServeHTTP(w, r)
+			return
+		}
+
+		// Fallback (e.g. for /favicon.ico if not strictly prefixed, or direct access)
 		fs.ServeHTTP(w, r)
 	})
 

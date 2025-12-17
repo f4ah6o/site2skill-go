@@ -141,36 +141,36 @@
 
         <h3>Pattern A: Path-based Locale</h3>
         <ul>
-            <li><a href="/docs/ja/getting-started/">/docs/ja/getting-started/</a> - Japanese</li>
-            <li><a href="/docs/en/getting-started/">/docs/en/getting-started/</a> - English</li>
-            <li><a href="/docs/zh-tw/getting-started/">/docs/zh-tw/getting-started/</a> - Traditional Chinese</li>
+            <li><a href="/site2skill-go/docs/ja/getting-started/">/docs/ja/getting-started/</a> - Japanese</li>
+            <li><a href="/site2skill-go/docs/en/getting-started/">/docs/en/getting-started/</a> - English</li>
+            <li><a href="/site2skill-go/docs/zh-tw/getting-started/">/docs/zh-tw/getting-started/</a> - Traditional Chinese</li>
         </ul>
         <p>Locale is explicitly embedded in the path. These pages return 200 OK.</p>
 
         <h3>Pattern B: Query-based Locale</h3>
         <ul>
-            <li><a href="/docs/getting-started/?lang=ja">/docs/getting-started/?lang=ja</a></li>
-            <li><a href="/docs/getting-started/?lang=en">/docs/getting-started/?lang=en</a></li>
+            <li><a href="/site2skill-go/docs/getting-started/?lang=ja">/docs/getting-started/?lang=ja</a></li>
+            <li><a href="/site2skill-go/docs/getting-started/?lang=en">/docs/getting-started/?lang=en</a></li>
         </ul>
         <p>Path is identical. Locale is specified via query parameter.</p>
 
         <h3>Pattern C: Mixed Locale (Conflict)</h3>
         <ul>
-            <li><a href="/docs/ja/getting-started/?lang=en">/docs/ja/getting-started/?lang=en</a></li>
+            <li><a href="/site2skill-go/docs/ja/getting-started/?lang=en">/docs/ja/getting-started/?lang=en</a></li>
         </ul>
         <p>Path locale and query locale conflict. Path locale MUST win.</p>
 
         <h3>Pattern D: No Locale</h3>
         <ul>
-            <li><a href="/docs/getting-started/">/docs/getting-started/</a></li>
+            <li><a href="/site2skill-go/docs/getting-started/">/docs/getting-started/</a></li>
         </ul>
         <p>No locale hint in path or query.</p>
 
         <h3>Pattern E: Varied Availability</h3>
         <ul>
-            <li><a href="/docs/ja/installation/">/docs/ja/installation/</a> - <strong>Japanese Only</strong></li>
-            <li><a href="/docs/en/api-reference/">/docs/en/api-reference/</a> - <strong>English Only</strong></li>
-            <li><a href="/docs/ja/examples/">/docs/ja/examples/</a>, <a href="/docs/en/examples/">/docs/en/examples/</a>
+            <li><a href="/site2skill-go/docs/ja/installation/">/docs/ja/installation/</a> - <strong>Japanese Only</strong></li>
+            <li><a href="/site2skill-go/docs/en/api-reference/">/docs/en/api-reference/</a> - <strong>English Only</strong></li>
+            <li><a href="/site2skill-go/docs/ja/examples/">/docs/ja/examples/</a>, <a href="/site2skill-go/docs/en/examples/">/docs/en/examples/</a>
                 - <strong>Ja/En Only</strong> (No zh-tw)</li>
         </ul>
         <p>Pages that exist only in specific locales.</p>
@@ -182,7 +182,7 @@ Disallow: /docs/ja/forbidden/
 
 User-agent: TestCrawler-Allow
 Disallow:</code></pre>
-        <p>Blocked paths: <a href="/docs/ng/">/docs/ng/</a>, <a href="/docs/ja/forbidden/">/docs/ja/forbidden/</a></p>
+        <p>Blocked paths: <a href="/site2skill-go/docs/ng/">/docs/ng/</a>, <a href="/site2skill-go/docs/ja/forbidden/">/docs/ja/forbidden/</a></p>
 
         <h2>Locale Priority</h2>
         <pre><code>ja > en > zh-tw > others</code></pre>
