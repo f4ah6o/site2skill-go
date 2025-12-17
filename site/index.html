@@ -143,7 +143,8 @@
         <ul>
             <li><a href="/site2skill-go/docs/ja/getting-started/">/docs/ja/getting-started/</a> - Japanese</li>
             <li><a href="/site2skill-go/docs/en/getting-started/">/docs/en/getting-started/</a> - English</li>
-            <li><a href="/site2skill-go/docs/zh-tw/getting-started/">/docs/zh-tw/getting-started/</a> - Traditional Chinese</li>
+            <li><a href="/site2skill-go/docs/zh-tw/getting-started/">/docs/zh-tw/getting-started/</a> - Traditional
+                Chinese</li>
         </ul>
         <p>Locale is explicitly embedded in the path. These pages return 200 OK.</p>
 
@@ -168,21 +169,25 @@
 
         <h3>Pattern E: Varied Availability</h3>
         <ul>
-            <li><a href="/site2skill-go/docs/ja/installation/">/docs/ja/installation/</a> - <strong>Japanese Only</strong></li>
-            <li><a href="/site2skill-go/docs/en/api-reference/">/docs/en/api-reference/</a> - <strong>English Only</strong></li>
-            <li><a href="/site2skill-go/docs/ja/examples/">/docs/ja/examples/</a>, <a href="/site2skill-go/docs/en/examples/">/docs/en/examples/</a>
+            <li><a href="/site2skill-go/docs/ja/installation/">/docs/ja/installation/</a> - <strong>Japanese
+                    Only</strong></li>
+            <li><a href="/site2skill-go/docs/en/api-reference/">/docs/en/api-reference/</a> - <strong>English
+                    Only</strong></li>
+            <li><a href="/site2skill-go/docs/ja/examples/">/docs/ja/examples/</a>, <a
+                    href="/site2skill-go/docs/en/examples/">/docs/en/examples/</a>
                 - <strong>Ja/En Only</strong> (No zh-tw)</li>
         </ul>
         <p>Pages that exist only in specific locales.</p>
 
         <h2>robots.txt Rules</h2>
         <pre><code>User-agent: *
-Disallow: /docs/ng/
-Disallow: /docs/ja/forbidden/
+Disallow: /site2skill-go/docs/ng/
+Disallow: /site2skill-go/docs/ja/forbidden/
 
 User-agent: TestCrawler-Allow
 Disallow:</code></pre>
-        <p>Blocked paths: <a href="/site2skill-go/docs/ng/">/docs/ng/</a>, <a href="/site2skill-go/docs/ja/forbidden/">/docs/ja/forbidden/</a></p>
+        <p>Blocked paths: <a href="/site2skill-go/docs/ng/">/site2skill-go/docs/ng/</a>, <a
+                href="/site2skill-go/docs/ja/forbidden/">/site2skill-go/docs/ja/forbidden/</a></p>
 
         <h2>Locale Priority</h2>
         <pre><code>ja > en > zh-tw > others</code></pre>
