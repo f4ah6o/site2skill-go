@@ -133,9 +133,9 @@
 <body>
     <div class="container">
         <h1>🔍 Crawler Verification Site</h1>
-        <p>This site exists <strong>only</strong> to verify crawler behavior for <a
-                href="https://github.com/f4ah6o/site2skill-go">site2skill-go</a>.</p>
-        <p>It intentionally exposes ambiguous and conflicting locale URL patterns.</p>
+        <p>This site serves as a <strong>dogfooding ground</strong> for <a
+                href="https://github.com/f4ah6o/site2skill-go">site2skill-go</a>, verifying crawler behavior with real-world complexity.</p>
+        <p>It intentionally exposes ambiguous and conflicting locale URL patterns to test robustness.</p>
 
         <h2>URL Patterns</h2>
 
@@ -150,16 +150,19 @@
 
         <h3>Pattern B: Query-based Locale</h3>
         <ul>
-            <li><a href="/site2skill-go/docs/getting-started/?lang=ja">/docs/getting-started/?lang=ja</a></li>
-            <li><a href="/site2skill-go/docs/getting-started/?lang=en">/docs/getting-started/?lang=en</a></li>
+            <li><a href="/site2skill-go/docs/pattern-b/?lang=ja">/docs/pattern-b/?lang=ja</a> - Japanese</li>
+            <li><a href="/site2skill-go/docs/pattern-b/?lang=en">/docs/pattern-b/?lang=en</a> - English</li>
+            <li><a href="/site2skill-go/docs/pattern-b/?lang=zh-tw">/docs/pattern-b/?lang=zh-tw</a> - Traditional Chinese</li>
         </ul>
-        <p>Path is identical. Locale is specified via query parameter.</p>
+        <p>Path is identical. Locale is specified via query parameter. Single page with JavaScript-based locale switching.</p>
 
         <h3>Pattern C: Mixed Locale (Conflict)</h3>
         <ul>
-            <li><a href="/site2skill-go/docs/ja/getting-started/?lang=en">/docs/ja/getting-started/?lang=en</a></li>
+            <li><a href="/site2skill-go/docs/ja/pattern-c/?lang=en">/docs/ja/pattern-c/?lang=en</a> - Japanese path + English query</li>
+            <li><a href="/site2skill-go/docs/en/pattern-c/?lang=ja">/docs/en/pattern-c/?lang=ja</a> - English path + Japanese query</li>
+            <li><a href="/site2skill-go/docs/zh-tw/pattern-c/?lang=en">/docs/zh-tw/pattern-c/?lang=en</a> - Traditional Chinese path + English query</li>
         </ul>
-        <p>Path locale and query locale conflict. Path locale MUST win.</p>
+        <p>Path locale and query locale conflict. Path locale MUST win. Each page detects and displays the conflict.</p>
 
         <h3>Pattern D: No Locale</h3>
         <ul>
@@ -210,15 +213,19 @@ Disallow:</code></pre>
                     <td><span class="badge badge-success">Only en is fetched</span></td>
                 </tr>
                 <tr>
-                    <td>query-only locale</td>
-                    <td><span class="badge badge-warning">Treated as locale hint</span></td>
+                    <td>Pattern B: query-only locale</td>
+                    <td><span class="badge badge-warning">Treated as locale hint, dynamically rendered</span></td>
+                </tr>
+                <tr>
+                    <td>Pattern C: path + query conflict</td>
+                    <td><span class="badge badge-success">Path locale takes priority, query ignored</span></td>
                 </tr>
                 <tr>
                     <td>robots disallow</td>
                     <td><span class="badge badge-danger">Must not be fetched</span></td>
                 </tr>
                 <tr>
-                    <td>mixed locale</td>
+                    <td>mixed locale conflict</td>
                     <td><span class="badge badge-success">Path locale wins</span></td>
                 </tr>
             </tbody>
