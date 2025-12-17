@@ -1,6 +1,6 @@
 User-agent: *
-Disallow: /docs/ng/
-Disallow: /docs/ja/forbidden/
+Disallow: /site2skill-go/docs/ng/
+Disallow: /site2skill-go/docs/ja/forbidden/
 
 User-agent: TestCrawler-Allow
 Disallow:
