@@ -90,46 +90,17 @@
 
 <body>
     <div class="container">
-        <div class="lang-switcher">
-            🌐 Language:
-            <a href="/docs/ja/getting-started/">日本語</a> |
-            <a href="/docs/en/getting-started/">English</a> |
-            <a href="/docs/zh-tw/getting-started/">繁體中文</a>
-        </div>
-
+        <div class="lang-switcher">🌐 Language: <a href="/docs/ja/getting-started/">日本語</a> | <a
+                href="/docs/en/getting-started/">English</a> | <a href="/docs/zh-tw/getting-started/">繁體中文</a></div>
         <h1>🚀 Getting Started</h1>
-
-        <div class="locale-info">
-            <strong>⚠️ Pattern D: No Locale in Path</strong><br>
-            Path: <code>/docs/getting-started/</code><br>
-            Language Code: <em>None specified</em><br>
-            This page has no locale hint. Crawlers should use hreflang to find localized versions.
-        </div>
-
+        <div class="locale-info"><strong>⚠️ Pattern D: No Locale in Path</strong><br>Path:
+            <code>/docs/getting-started/</code><br>Language Code: <em>None specified</em><br>This page has no locale
+            hint. Crawlers should use hreflang to find localized versions.</div>
         <h2>What is site2skill-go?</h2>
-        <p>
-            <code>site2skill-go</code> is a tool that crawls documentation websites
-            and converts them into skill packages for Claude and Codex agents.
-        </p>
-
+        <p><code>site2skill-go</code> is a tool that crawls documentation websites and converts them into skill packages
+            for Claude and Codex agents.</p>
         <h2>Installation</h2>
         <pre><code>go install github.com/f4ah6o/site2skill-go/cmd/site2skillgo@latest</code></pre>
-
-        <h2>Basic Usage</h2>
-        <pre><code># Generate a Claude skill
-site2skillgo generate https://docs.example.com myskill
-
-# Generate a Codex skill
-site2skillgo generate https://docs.example.com myskill --format codex</code></pre>
-
-        <h2>Features</h2>
-        <ul style="margin: 1rem 0 1rem 2rem;">
-            <li>🌐 Built-in Web Crawler</li>
-            <li>📝 HTML to Markdown Conversion</li>
-            <li>🔍 Full-text Search</li>
-            <li>✅ Automatic Validation</li>
-        </ul>
-
         <p><a href="/">← Back to Home</a></p>
     </div>
 </body>
