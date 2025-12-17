@@ -15,7 +15,7 @@ go.work
 
 # Build artifacts
 *.skill
-build/
+build*
 
 # Temporary files
 temp_docs/
