@@ -29,22 +29,15 @@ jobs:
       - name: Parse and Validate
         id: parse
         shell: bash
-        env:
-          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           set -euo pipefail
-          # 改行コード削除（環境変数経由で安全に受け取る）
-          body=$(printf '%s' "$ISSUE_BODY" | tr -d '\r')
+          # 改行コード削除
+          body=$(echo "${{ github.event.issue.body }}" | tr -d '\r')
 
-          # "### header" の次の非空行を取得する関数
+          # "### header" の次の行を取得する関数
           get_field() {
             local header="$1"
-            printf '%s' "$body" | awk -v h="### $header" '
-              $0 ~ h { flag=1; next }
-              flag && /^###/ { exit }
-              flag && /^[[:space:]]*$/ { next }
-              flag && NF { gsub(/^[[:space:]]+|[[:space:]]+$/, ""); print; exit }
-            '
+            echo "$body" | awk -v h="### $header" '$0 ~ h {flag=1; next} flag && NF {print $0; exit}'
           }
 
           URL="$(get_field 'url')"
@@ -60,9 +53,8 @@ jobs:
           # IPアドレス除外などは簡易的に
           if echo "$URL" | grep -Eqi 'https://(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|172\.)'; then IS_VALID="false"; fi
           if echo "$NAME" | grep -Eq '[^a-zA-Z0-9._-]'; then IS_VALID="false"; fi
-
+          
           echo "is_valid=$IS_VALID" >> "$GITHUB_OUTPUT"
-
 
       - name: Comment if invalid
         if: ${{ steps.parse.outputs.is_valid == 'false' }}
@@ -80,45 +72,36 @@ jobs:
         if: ${{ steps.parse.outputs.is_valid == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          CHECK_URL: ${{ steps.parse.outputs.url }}
         shell: bash
         run: |
           set -euo pipefail
-          URL='${{ steps.parse.outputs.url }}'
-          
           mkdir -p hub
           if gh release view skills >/dev/null 2>&1; then
             gh release download skills -p index.json -D hub || echo '{}' > hub/index.json
           else
             echo '{}' > hub/index.json
           fi
-
-          # ★修正: 引数 "$URL" を <<'PY' の前に移動しました
-          RESULT=$(python3 - "$URL" <<'PY'
-import json, sys, time
-from urllib.parse import urlparse
-
-idx_path="hub/index.json"
-url=sys.argv[1]
-now=int(time.time())
-
-try:
-  data=json.load(open(idx_path,"r",encoding="utf-8"))
-except:
-  data={}
-
-domain = urlparse(url).netloc.lower()
-d_last = data.get("domain_last",{}).get(domain, 0)
-u_last = data.get("url_last",{}).get(url, 0)
-
-# Rules: domain 24h (86400s), url 7d (604800s)
-if (now - d_last) < 86400:
-    print("BLOCKED")
-elif (now - u_last) < 604800:
-    print("BLOCKED")
-else:
-    print("OK")
-PY
-)
+          RESULT=$(python3 -c "
+          import json, sys, time, os
+          from urllib.parse import urlparse
+          idx_path='hub/index.json'
+          url=os.environ['CHECK_URL']
+          now=int(time.time())
+          try:
+            data=json.load(open(idx_path,'r',encoding='utf-8'))
+          except:
+            data={}
+          domain = urlparse(url).netloc.lower()
+          d_last = data.get('domain_last',{}).get(domain, 0)
+          u_last = data.get('url_last',{}).get(url, 0)
+          if (now - d_last) < 86400:
+            print('BLOCKED')
+          elif (now - u_last) < 604800:
+            print('BLOCKED')
+          else:
+            print('OK')
+          ")
           if [ "$RESULT" = "BLOCKED" ]; then
             echo "blocked=true" >> "$GITHUB_OUTPUT"
           else
@@ -174,61 +157,54 @@ PY
         if: ${{ steps.parse.outputs.is_valid == 'true' && steps.interval.outputs.blocked == 'false' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          IDX_URL: ${{ steps.parse.outputs.url }}
+          IDX_NAME: ${{ steps.parse.outputs.name }}
+          IDX_HASH: ${{ steps.gen.outputs.hash }}
+          IDX_TOOLVER: ${{ steps.gen.outputs.toolver }}
+          IDX_ZIP_FILE: ${{ steps.gen.outputs.zip }}
+          IDX_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          URL='${{ steps.parse.outputs.url }}'
-          NAME='${{ steps.parse.outputs.name }}'
-          HASH='${{ steps.gen.outputs.hash }}'
-          TOOLVER='${{ steps.gen.outputs.toolver }}'
-          ZIP_FILE='${{ steps.gen.outputs.zip }}'
-          ZIP_BASE="$(basename "$ZIP_FILE")"
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          ZIP_BASE="$(basename "$IDX_ZIP_FILE")"
           NOW="$(date +%s)"
-
-          # Pythonスクリプト: 引数を渡す正しい形式に修正
-          python3 - "$URL" "$NAME" "$HASH" "$TOOLVER" "$RUN_URL" "$ZIP_BASE" "$NOW" <<'PY'
-import json, sys
-from urllib.parse import urlparse
-
-idx_path="hub/index.json"
-args = sys.argv
-url, name, hashv, toolver, run_url, zip_base = args[1], args[2], args[3], args[4], args[5], args[6]
-now = int(args[7])
-domain = urlparse(url).netloc.lower()
-
-try:
-    with open(idx_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-except:
-    data = {}
-
-data.setdefault("items", [])
-data.setdefault("domain_last", {})
-data.setdefault("url_last", {})
-
-items = [it for it in data["items"] if it.get("hash") != hashv]
-items.append({
-    "hash": hashv, "name": name, "url": url, "domain": domain,
-    "zip": zip_base, "generated_at": now, "tool_version": toolver, "run_url": run_url
-})
-data["items"] = sorted(items, key=lambda x: x.get("generated_at", 0), reverse=True)
-
-data["domain_last"][domain] = now
-data["url_last"][url] = now
-
-with open(idx_path, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=2)
-PY
-
+          export IDX_ZIP_BASE="$ZIP_BASE"
+          export IDX_NOW="$NOW"
+          python3 -c "
+          import json, os
+          from urllib.parse import urlparse
+          idx_path='hub/index.json'
+          url = os.environ['IDX_URL']
+          name = os.environ['IDX_NAME']
+          hashv = os.environ['IDX_HASH']
+          toolver = os.environ['IDX_TOOLVER']
+          run_url = os.environ['IDX_RUN_URL']
+          zip_base = os.environ['IDX_ZIP_BASE']
+          now = int(os.environ['IDX_NOW'])
+          domain = urlparse(url).netloc.lower()
+          try:
+            with open(idx_path, 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          except:
+            data = {}
+          data.setdefault('items', [])
+          data.setdefault('domain_last', {})
+          data.setdefault('url_last', {})
+          items = [it for it in data['items'] if it.get('hash') != hashv]
+          items.append({'hash': hashv, 'name': name, 'url': url, 'domain': domain, 'zip': zip_base, 'generated_at': now, 'tool_version': toolver, 'run_url': run_url})
+          data['items'] = sorted(items, key=lambda x: x.get('generated_at', 0), reverse=True)
+          data['domain_last'][domain] = now
+          data['url_last'][url] = now
+          with open(idx_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+          "
           if ! gh release view skills >/dev/null 2>&1; then
             gh release create skills --title "Skills registry" --notes "Generated skills."
           fi
-          gh release upload skills "$ZIP_FILE" hub/index.json --clobber
-          
+          gh release upload skills "$IDX_ZIP_FILE" hub/index.json --clobber
           REL="${{ github.server_url }}/${{ github.repository }}/releases/tag/skills"
           gh issue comment ${{ github.event.issue.number }} \
-            --body "生成完了: ${NAME} (Hash: \`${HASH}\`)<br>Download: [Release Assets](${REL})<br>Source: ${URL}"
+            --body "生成完了: ${IDX_NAME} (Hash: \`${IDX_HASH}\`)<br>Download: [Release Assets](${REL})<br>Source: ${IDX_URL}"
 
       - name: Create failure issue
         if: ${{ failure() }}
