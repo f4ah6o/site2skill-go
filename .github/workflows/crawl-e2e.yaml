@@ -104,6 +104,101 @@ jobs:
           \`\`\`
           EOF
 
+      - name: Compare Go vs Python output diff
+        run: |
+          echo "=== Comparing site2skill-go vs Python site2skill output ==="
+
+          GO_SKILL_DIR=".claude/skills/test-go-skill"
+          PY_SKILL_DIR=".claude/skills/test-python-skill"
+
+          HAS_DIFF=false
+          DIFF_OUTPUT=""
+
+          # Check if both directories exist
+          if [ ! -d "$GO_SKILL_DIR" ] || [ ! -d "$PY_SKILL_DIR" ]; then
+            echo "One or both skill directories do not exist. Skipping diff."
+            exit 0
+          fi
+
+          # Compare directory structure
+          echo "--- Directory Structure Comparison ---"
+          GO_STRUCTURE=$(find "$GO_SKILL_DIR" -type f | sed "s|$GO_SKILL_DIR/||" | sort)
+          PY_STRUCTURE=$(find "$PY_SKILL_DIR" -type f | sed "s|$PY_SKILL_DIR/||" | sort)
+
+          STRUCTURE_DIFF=$(diff <(echo "$GO_STRUCTURE") <(echo "$PY_STRUCTURE") || true)
+          if [ -n "$STRUCTURE_DIFF" ]; then
+            HAS_DIFF=true
+            DIFF_OUTPUT+="### 📂 Directory Structure Differences\n\n"
+            DIFF_OUTPUT+="\`\`\`diff\n"
+            DIFF_OUTPUT+="$STRUCTURE_DIFF\n"
+            DIFF_OUTPUT+="\`\`\`\n\n"
+            DIFF_OUTPUT+="**Legend:** \`<\` = Go only, \`>\` = Python only\n\n"
+            echo "Structure differences found"
+          else
+            echo "No structure differences"
+          fi
+
+          # Compare documentation content (docs/ directory only)
+          echo "--- Content Comparison (docs/*.md) ---"
+          GO_DOCS_DIR="$GO_SKILL_DIR/docs"
+          PY_DOCS_DIR="$PY_SKILL_DIR/docs"
+
+          if [ -d "$GO_DOCS_DIR" ] && [ -d "$PY_DOCS_DIR" ]; then
+            # Get common files
+            GO_DOC_FILES=$(find "$GO_DOCS_DIR" -name "*.md" -exec basename {} \; | sort)
+            PY_DOC_FILES=$(find "$PY_DOCS_DIR" -name "*.md" -exec basename {} \; | sort)
+            COMMON_FILES=$(comm -12 <(echo "$GO_DOC_FILES") <(echo "$PY_DOC_FILES"))
+            
+            if [ -n "$COMMON_FILES" ]; then
+              CONTENT_DIFF=""
+              for file in $COMMON_FILES; do
+                FILE_DIFF=$(diff "$GO_DOCS_DIR/$file" "$PY_DOCS_DIR/$file" 2>/dev/null || true)
+                if [ -n "$FILE_DIFF" ]; then
+                  CONTENT_DIFF+="#### $file\n\`\`\`diff\n$FILE_DIFF\n\`\`\`\n\n"
+                fi
+              done
+              
+              if [ -n "$CONTENT_DIFF" ]; then
+                HAS_DIFF=true
+                DIFF_OUTPUT+="### 📄 Content Differences (docs/*.md)\n\n"
+                DIFF_OUTPUT+="$CONTENT_DIFF"
+              fi
+            fi
+          fi
+
+          # Compare SKILL.md
+          echo "--- SKILL.md Comparison ---"
+          GO_SKILL_MD="$GO_SKILL_DIR/SKILL.md"
+          PY_SKILL_MD="$PY_SKILL_DIR/SKILL.md"
+
+          if [ -f "$GO_SKILL_MD" ] && [ -f "$PY_SKILL_MD" ]; then
+            SKILL_MD_DIFF=$(diff "$GO_SKILL_MD" "$PY_SKILL_MD" || true)
+            if [ -n "$SKILL_MD_DIFF" ]; then
+              HAS_DIFF=true
+              DIFF_OUTPUT+="### 📋 SKILL.md Differences\n\n"
+              DIFF_OUTPUT+="\`\`\`diff\n"
+              DIFF_OUTPUT+="$SKILL_MD_DIFF\n"
+              DIFF_OUTPUT+="\`\`\`\n\n"
+            fi
+          fi
+
+          # Write to Job Summary only if there are differences
+          if [ "$HAS_DIFF" = true ]; then
+            echo ""
+            echo "=== Differences Found ==="
+            cat >> $GITHUB_STEP_SUMMARY << EOF
+
+          ## 🔍 Go vs Python Output Diff
+
+          > Differences detected between site2skill-go and Python site2skill outputs.
+
+          $(echo -e "$DIFF_OUTPUT")
+          EOF
+            echo "Diff has been added to Job Summary"
+          else
+            echo "No differences found between Go and Python outputs"
+          fi
+
       - name: Upload Go skill artifact
         uses: actions/upload-artifact@v4
         with:
