@@ -31,22 +31,37 @@ const (
 	FormatBoth = "both"
 )
 
-// CodexConfig represents the structure of ~/.codex/config.toml
+// CodexConfig represents the structure of config.toml
 type CodexConfig struct {
 	Features struct {
 		Skills bool `toml:"skills"`
 	} `toml:"features"`
 }
 
-// checkCodexSkillsConfig checks if Codex skills feature is enabled in ~/.codex/config.toml
-// Returns: (enabled bool, configExists bool, err error)
-func checkCodexSkillsConfig() (bool, bool, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return false, false, fmt.Errorf("failed to get current user: %w", err)
+// getCodexHome returns the Codex home directory.
+// It checks the CODEX_HOME environment variable first, then falls back to ~/.codex
+func getCodexHome() (string, error) {
+	if codexHome := os.Getenv("CODEX_HOME"); codexHome != "" {
+		return codexHome, nil
 	}
 
-	configPath := filepath.Join(usr.HomeDir, ".codex", "config.toml")
+	usr, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	return filepath.Join(usr.HomeDir, ".codex"), nil
+}
+
+// checkCodexSkillsConfig checks if Codex skills feature is enabled in config.toml
+// Returns: (enabled bool, configExists bool, err error)
+func checkCodexSkillsConfig() (bool, bool, error) {
+	codexHome, err := getCodexHome()
+	if err != nil {
+		return false, false, err
+	}
+
+	configPath := filepath.Join(codexHome, "config.toml")
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return false, false, nil
@@ -125,8 +140,7 @@ func runGenerate(args []string) {
 	var (
 		url              string
 		skillName        string
-		output           string
-		skillOutput      string
+		global           bool
 		tempDir          string
 		skipFetch        bool
 		clean            bool
@@ -138,8 +152,7 @@ func runGenerate(args []string) {
 
 	fs.StringVar(&url, "url", "", "URL of the documentation site (required)")
 	fs.StringVar(&skillName, "name", "", "Name of the skill (required)")
-	fs.StringVar(&output, "output", ".claude/skills", "Base output directory for skill structure")
-	fs.StringVar(&skillOutput, "skill-output", ".", "Output directory for .skill file")
+	fs.BoolVar(&global, "global", false, "Install to global skills directory (~/.claude/skills or ~/.codex/skills)")
 	fs.StringVar(&tempDir, "temp-dir", "build", "Temporary directory for processing")
 	fs.BoolVar(&skipFetch, "skip-fetch", false, "Skip the download step (use existing files in temp dir)")
 	fs.BoolVar(&clean, "clean", false, "Clean up temporary directory after completion")
@@ -172,7 +185,7 @@ Pipeline Steps:
 Examples:
   site2skillgo generate https://docs.example.com example
   site2skillgo generate https://docs.python.org/3/ python3 --format claude
-  site2skillgo generate https://stripe.com/docs/api stripe --format codex --output ./my-skills
+  site2skillgo generate https://stripe.com/docs/api stripe --format codex --global
   site2skillgo generate https://docs.example.com example --skip-fetch --clean
 `)
 	}
@@ -196,24 +209,72 @@ Examples:
 		log.Fatalf("Invalid format: %s. Must be 'claude', 'codex', or 'both'", format)
 	}
 
-	executeGenerate(url, skillName, output, skillOutput, tempDir, skipFetch, clean, format, localePriority, noLocalePriority, localeParam)
+	executeGenerate(url, skillName, global, tempDir, skipFetch, clean, format, localePriority, noLocalePriority, localeParam)
 }
 
-func executeGenerate(url, skillName, output, skillOutput, tempDir string, skipFetch, clean bool, format, localePriority string, noLocalePriority bool, localeParam string) {
+// determineOutputPaths determines the output directories based on format and scope (global/local)
+func determineOutputPaths(format string, global bool) (skillStructureDir, skillFileDir string) {
+	if global {
+		if format == FormatClaude {
+			usr, err := user.Current()
+			if err != nil {
+				log.Fatalf("Failed to get current user: %v", err)
+			}
+			skillStructureDir = filepath.Join(usr.HomeDir, ".claude", "skills")
+			skillFileDir = skillStructureDir
+		} else if format == FormatCodex {
+			codexHome, err := getCodexHome()
+			if err != nil {
+				log.Fatalf("Failed to get Codex home directory: %v", err)
+			}
+			skillStructureDir = filepath.Join(codexHome, "skills")
+			skillFileDir = skillStructureDir
+		}
+	} else {
+		// local (default)
+		if format == FormatClaude {
+			skillStructureDir = filepath.Join(".claude", "skills")
+			skillFileDir = skillStructureDir
+		} else if format == FormatCodex {
+			skillStructureDir = filepath.Join(".codex", "skills")
+			skillFileDir = skillStructureDir
+		}
+	}
+
+	return skillStructureDir, skillFileDir
+}
+
+func executeGenerate(url, skillName string, global bool, tempDir string, skipFetch, clean bool, format, localePriority string, noLocalePriority bool, localeParam string) {
 	// Check Codex skills configuration if generating codex format
 	if format == FormatCodex || format == FormatBoth {
 		enabled, configExists, err := checkCodexSkillsConfig()
 		if err != nil {
 			log.Printf("Warning: %v", err)
 		} else if !configExists {
-			log.Printf("Info: ~/.codex/config.toml not found. To enable Codex skills, create the file with:")
+			codexHome, _ := getCodexHome()
+			configPath := filepath.Join(codexHome, "config.toml")
+			log.Printf("Info: %s not found. To enable Codex skills, create the file with:", configPath)
 			log.Printf("  [features]")
 			log.Printf("  skills = true")
 		} else if !enabled {
-			log.Printf("Info: Codex skills feature is not enabled. To enable it, add the following to ~/.codex/config.toml:")
+			codexHome, _ := getCodexHome()
+			configPath := filepath.Join(codexHome, "config.toml")
+			log.Printf("Info: Codex skills feature is not enabled. To enable it, add the following to %s:", configPath)
 			log.Printf("  [features]")
 			log.Printf("  skills = true")
 		}
+	}
+
+	// Determine output directories based on format and global flag
+	var output, skillOutput string
+
+	if format == FormatBoth {
+		// For both format, we'll handle each format separately in the generation step
+		// Set a placeholder for now
+		output = ""
+		skillOutput = ""
+	} else {
+		output, skillOutput = determineOutputPaths(format, global)
 	}
 
 	// Setup directories
@@ -337,17 +398,25 @@ func executeGenerate(url, skillName, output, skillOutput, tempDir string, skipFe
 	}
 
 	// Step 4: Generate Skill Structure
-	var skillDirs []string
+	type skillInfo struct {
+		dir        string
+		outputPath string
+	}
+	var skills []skillInfo
 
 	if format == FormatBoth {
 		// Generate both Claude and Codex formats
 		for _, fmt := range []string{FormatClaude, FormatCodex} {
 			log.Printf("=== Step 4: Generating Skill Structure (%s format) ===", fmt)
+			fmtOutput, fmtSkillOutput := determineOutputPaths(fmt, global)
 			gen := skillgen.New(fmt)
-			if err := gen.Generate(skillName, tempMdDir, output); err != nil {
+			if err := gen.Generate(skillName, tempMdDir, fmtOutput); err != nil {
 				log.Fatalf("Failed to generate skill structure: %v", err)
 			}
-			skillDirs = append(skillDirs, filepath.Join(output, skillName))
+			skills = append(skills, skillInfo{
+				dir:        filepath.Join(fmtOutput, skillName),
+				outputPath: fmtSkillOutput,
+			})
 		}
 	} else {
 		log.Printf("=== Step 4: Generating Skill Structure (%s format) ===", format)
@@ -355,15 +424,18 @@ func executeGenerate(url, skillName, output, skillOutput, tempDir string, skipFe
 		if err := gen.Generate(skillName, tempMdDir, output); err != nil {
 			log.Fatalf("Failed to generate skill structure: %v", err)
 		}
-		skillDirs = append(skillDirs, filepath.Join(output, skillName))
+		skills = append(skills, skillInfo{
+			dir:        filepath.Join(output, skillName),
+			outputPath: skillOutput,
+		})
 	}
 
 	// Step 5: Validate Skill
 	log.Printf("=== Step 5: Validating Skill ===")
 	val := validator.New()
-	for _, dir := range skillDirs {
-		if !val.Validate(dir) {
-			log.Printf("Warning: Validation failed for %s. Please check errors.", dir)
+	for _, skill := range skills {
+		if !val.Validate(skill.dir) {
+			log.Printf("Warning: Validation failed for %s. Please check errors.", skill.dir)
 		}
 	}
 
@@ -371,8 +443,8 @@ func executeGenerate(url, skillName, output, skillOutput, tempDir string, skipFe
 	log.Printf("=== Step 6: Packaging Skill ===")
 	pkg := packager.New()
 	var skillFiles []string
-	for _, dir := range skillDirs {
-		skillFile, err := pkg.Package(dir, skillOutput)
+	for _, skill := range skills {
+		skillFile, err := pkg.Package(skill.dir, skill.outputPath)
 		if err != nil {
 			log.Fatalf("Failed to package skill: %v", err)
 		}
