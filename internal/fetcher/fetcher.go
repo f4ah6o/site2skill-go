@@ -90,6 +90,17 @@ func (f *Fetcher) Fetch(targetURL string) error {
 	f.domain = parsedURL.Host
 	crawlDir := filepath.Join(f.outputDir, "crawl")
 
+	// Set base path for robots.txt lookup (for subdirectory deployments like GitHub Pages)
+	// Extract the first path segment as base path (e.g., "/site2skill-go" from "/site2skill-go/docs/")
+	if parsedURL.Path != "" && parsedURL.Path != "/" {
+		pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+		if len(pathParts) > 0 && pathParts[0] != "" {
+			basePath := "/" + pathParts[0]
+			f.robotsChecker.SetBasePath(basePath)
+			log.Printf("Set robots.txt base path: %s", basePath)
+		}
+	}
+
 	// Clean/Create crawl directory
 	if err := os.RemoveAll(crawlDir); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove crawl dir: %w", err)

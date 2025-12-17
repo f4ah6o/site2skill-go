@@ -6,6 +6,7 @@ package fetcher
 import (
 	"bufio"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,6 +20,7 @@ type RobotsChecker struct {
 	mu         sync.RWMutex
 	userAgent  string
 	httpClient *http.Client
+	basePath   string // Base path for subdirectory deployments (e.g., "/site2skill-go")
 }
 
 // robotsRules holds parsed robots.txt rules for a domain.
@@ -38,6 +40,20 @@ func NewRobotsChecker(userAgent string) *RobotsChecker {
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+// SetBasePath sets the base path for subdirectory deployments like GitHub Pages.
+// When set, robots.txt will be fetched from basePath/robots.txt if the root
+// /robots.txt is not found.
+func (r *RobotsChecker) SetBasePath(basePath string) {
+	// Normalize basePath: ensure it starts with / and doesn't end with /
+	if basePath != "" {
+		if !strings.HasPrefix(basePath, "/") {
+			basePath = "/" + basePath
+		}
+		basePath = strings.TrimSuffix(basePath, "/")
+	}
+	r.basePath = basePath
 }
 
 // IsAllowed checks if the given URL is allowed by robots.txt.
@@ -81,8 +97,13 @@ func (r *RobotsChecker) IsAllowed(targetURL string) bool {
 }
 
 // getRules fetches or retrieves cached robots.txt rules for a domain.
+// It tries the root /robots.txt first, then falls back to basePath/robots.txt
+// for subdirectory deployments like GitHub Pages.
 func (r *RobotsChecker) getRules(scheme, host string) *robotsRules {
 	cacheKey := scheme + "://" + host
+	if r.basePath != "" {
+		cacheKey += r.basePath
+	}
 
 	// Check cache first
 	r.mu.RLock()
@@ -93,9 +114,16 @@ func (r *RobotsChecker) getRules(scheme, host string) *robotsRules {
 		return rules
 	}
 
-	// Fetch robots.txt
+	// Try fetching robots.txt from root first
 	robotsURL := scheme + "://" + host + "/robots.txt"
 	rules = r.fetchRobotsTxt(robotsURL)
+
+	// If root robots.txt not found and basePath is set, try basePath/robots.txt
+	if rules == nil && r.basePath != "" {
+		subDirRobotsURL := scheme + "://" + host + r.basePath + "/robots.txt"
+		log.Printf("Root robots.txt not found, trying subdirectory: %s", subDirRobotsURL)
+		rules = r.fetchRobotsTxt(subDirRobotsURL)
+	}
 
 	// Cache the result (even if nil)
 	r.mu.Lock()
@@ -118,6 +146,7 @@ func (r *RobotsChecker) fetchRobotsTxt(robotsURL string) *robotsRules {
 		return nil
 	}
 
+	log.Printf("Successfully fetched robots.txt from %s", robotsURL)
 	return r.parseRobotsTxt(resp.Body)
 }
 

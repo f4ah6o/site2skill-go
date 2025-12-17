@@ -162,3 +162,28 @@ func TestNewRobotsChecker(t *testing.T) {
 		t.Errorf("userAgent = %q, want %q", r.userAgent, "test-bot")
 	}
 }
+
+func TestRobotsChecker_SetBasePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"with leading slash", "/site2skill-go", "/site2skill-go"},
+		{"without leading slash", "site2skill-go", "/site2skill-go"},
+		{"with trailing slash", "/site2skill-go/", "/site2skill-go"},
+		{"both slashes", "site2skill-go/", "/site2skill-go"},
+		{"empty string", "", ""},
+		{"just slash", "/", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRobotsChecker("test-bot")
+			r.SetBasePath(tt.input)
+			if r.basePath != tt.expected {
+				t.Errorf("SetBasePath(%q): got basePath=%q, want %q", tt.input, r.basePath, tt.expected)
+			}
+		})
+	}
+}
