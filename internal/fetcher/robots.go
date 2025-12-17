@@ -14,24 +14,47 @@ import (
 	"time"
 )
 
-// RobotsChecker checks if a URL is allowed by robots.txt rules.
+// RobotsChecker checks if URLs are allowed by robots.txt rules.
+// It fetches, parses, and caches robots.txt files for each domain, applying
+// user-agent-specific rules to determine crawl permissions. Thread-safe for
+// concurrent use.
 type RobotsChecker struct {
-	cache      map[string]*robotsRules
-	mu         sync.RWMutex
-	userAgent  string
+	// cache stores parsed robots.txt rules indexed by domain and basePath
+	cache map[string]*robotsRules
+	// mu protects concurrent access to the cache
+	mu sync.RWMutex
+	// userAgent identifies this crawler in robots.txt matching
+	userAgent string
+	// httpClient is used to fetch robots.txt files
 	httpClient *http.Client
-	basePath   string // Base path for subdirectory deployments (e.g., "/site2skill-go")
+	// basePath is the base path for subdirectory deployments (e.g., "/site2skill-go")
+	// Used to support GitHub Pages and similar hosting where robots.txt may be
+	// located at a subdirectory rather than the root
+	basePath string
 }
 
-// robotsRules holds parsed robots.txt rules for a domain.
+// robotsRules holds parsed robots.txt directives for a specific domain and user agent.
+// It stores both allow and disallow patterns as well as optional crawl delay settings.
 type robotsRules struct {
+	// disallowRules contains path patterns that should not be crawled
 	disallowRules []string
-	allowRules    []string
-	crawlDelay    time.Duration
-	fetchedAt     time.Time
+	// allowRules contains path patterns that are explicitly allowed
+	// (used to override broader disallow rules)
+	allowRules []string
+	// crawlDelay specifies the minimum time between requests (not currently enforced)
+	crawlDelay time.Duration
+	// fetchedAt records when these rules were retrieved
+	fetchedAt time.Time
 }
 
-// NewRobotsChecker creates a new RobotsChecker with the specified user agent.
+// NewRobotsChecker creates a new RobotsChecker configured with the specified user agent string.
+// The user agent is used to match User-agent directives in robots.txt files.
+//
+// Parameters:
+//   - userAgent: The user agent string to identify this crawler (e.g., "MyBot/1.0")
+//
+// Returns a new RobotsChecker instance ready for use. The checker is thread-safe
+// and automatically caches robots.txt files to minimize network requests.
 func NewRobotsChecker(userAgent string) *RobotsChecker {
 	return &RobotsChecker{
 		cache:     make(map[string]*robotsRules),
@@ -42,9 +65,18 @@ func NewRobotsChecker(userAgent string) *RobotsChecker {
 	}
 }
 
-// SetBasePath sets the base path for subdirectory deployments like GitHub Pages.
-// When set, robots.txt will be fetched from basePath/robots.txt if the root
-// /robots.txt is not found.
+// SetBasePath configures the base path for subdirectory deployments like GitHub Pages.
+// This is necessary for sites hosted in subdirectories where robots.txt may be located
+// at a path like /project-name/robots.txt instead of /robots.txt.
+//
+// When set, if /robots.txt returns 404, the checker will try basePath/robots.txt as a fallback.
+// For example, if basePath is "/site2skill-go", the checker will try:
+//   1. https://example.com/robots.txt
+//   2. https://example.com/site2skill-go/robots.txt (if #1 fails)
+//
+// Parameters:
+//   - basePath: The base path (e.g., "/site2skill-go"). Will be normalized to ensure
+//     it starts with "/" and doesn't end with "/". Pass empty string to disable.
 func (r *RobotsChecker) SetBasePath(basePath string) {
 	// Normalize basePath: ensure it starts with / and doesn't end with /
 	if basePath != "" {
@@ -133,7 +165,14 @@ func (r *RobotsChecker) getRules(scheme, host string) *robotsRules {
 	return rules
 }
 
-// fetchRobotsTxt fetches and parses a robots.txt file.
+// fetchRobotsTxt fetches and parses a robots.txt file from the specified URL.
+// It performs an HTTP GET request and parses the response if successful.
+//
+// Parameters:
+//   - robotsURL: The complete URL to the robots.txt file
+//
+// Returns the parsed robotsRules, or nil if the file doesn't exist (404) or cannot be fetched.
+// A nil return value indicates all URLs should be allowed (permissive behavior).
 func (r *RobotsChecker) fetchRobotsTxt(robotsURL string) *robotsRules {
 	resp, err := r.httpClient.Get(robotsURL)
 	if err != nil {
@@ -150,7 +189,16 @@ func (r *RobotsChecker) fetchRobotsTxt(robotsURL string) *robotsRules {
 	return r.parseRobotsTxt(resp.Body)
 }
 
-// parseRobotsTxt parses robots.txt content and extracts rules for our user agent.
+// parseRobotsTxt parses robots.txt content from a reader and extracts rules for the configured user agent.
+// It implements the robots.txt standard, supporting User-agent, Disallow, Allow, and Crawl-delay directives.
+//
+// The parser handles both user-agent-specific rules and wildcard (*) rules, preferring
+// specific rules when available and falling back to wildcard rules otherwise.
+//
+// Parameters:
+//   - reader: An io.Reader providing the robots.txt content
+//
+// Returns a robotsRules struct containing the parsed directives applicable to this user agent.
 func (r *RobotsChecker) parseRobotsTxt(reader io.Reader) *robotsRules {
 	rules := &robotsRules{
 		fetchedAt: time.Now(),
@@ -223,8 +271,23 @@ func (r *RobotsChecker) parseRobotsTxt(reader io.Reader) *robotsRules {
 	return rules
 }
 
-// pathMatches checks if a path matches a robots.txt pattern.
-// Supports * wildcard and $ end-of-string anchor.
+// pathMatches checks if a URL path matches a robots.txt pattern according to the robots.txt standard.
+// It supports:
+//   - * wildcard: matches any sequence of characters
+//   - $ anchor: matches end of path (must be at end of pattern)
+//   - Prefix matching: patterns without wildcards match path prefixes
+//
+// Parameters:
+//   - path: The URL path to test (e.g., "/docs/api/index.html")
+//   - pattern: The robots.txt pattern (e.g., "/docs/*", "/admin$", "/api/")
+//
+// Returns true if the path matches the pattern according to robots.txt rules.
+//
+// Examples:
+//   pathMatches("/docs/api", "/docs/") -> true (prefix match)
+//   pathMatches("/docs/api", "/docs/*") -> true (wildcard match)
+//   pathMatches("/docs", "/docs$") -> true (exact match with anchor)
+//   pathMatches("/docs/api", "/docs$") -> false (anchor doesn't match)
 func (r *RobotsChecker) pathMatches(path, pattern string) bool {
 	if pattern == "" {
 		return false
@@ -249,7 +312,20 @@ func (r *RobotsChecker) pathMatches(path, pattern string) bool {
 	return strings.HasPrefix(path, pattern)
 }
 
-// wildcardMatch handles patterns with * wildcards.
+// wildcardMatch matches a path against a pattern containing * wildcards.
+// It splits the pattern by asterisks and ensures each non-wildcard part appears
+// in order in the path.
+//
+// Parameters:
+//   - path: The URL path to test
+//   - pattern: The pattern containing one or more * wildcards
+//   - mustMatchEnd: If true, the match must consume the entire path ($ anchor)
+//
+// Returns true if the path matches the wildcard pattern.
+//
+// Example:
+//   wildcardMatch("/api/v1/users", "/api/*/users", false) -> true
+//   wildcardMatch("/api/v1/users", "/api/*.html", false) -> false
 func (r *RobotsChecker) wildcardMatch(path, pattern string, mustMatchEnd bool) bool {
 	parts := strings.Split(pattern, "*")
 

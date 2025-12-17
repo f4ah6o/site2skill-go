@@ -21,24 +21,51 @@ const (
 )
 
 
-// Generator creates skill directory structures.
+// Generator creates skill directory structures and manifests for AI skill packages.
+// It generates platform-specific skill layouts with appropriate documentation and metadata
+// files for Claude or Codex AI assistants.
 type Generator struct {
+	// format specifies the target AI platform ("claude", "codex", or "both")
 	format string
 }
 
-// New creates a new Generator configured for the specified format (claude or codex).
+// New creates a new Generator configured for the specified output format.
+//
+// Parameters:
+//   - format: The target format - "claude" for Claude Agent Skills,
+//     "codex" for OpenAI Codex Skills, or "both" for generating both formats
+//
+// Returns a Generator ready to create skill directory structures.
 func New(format string) *Generator {
 	return &Generator{
 		format: format,
 	}
 }
 
-// Generate creates a complete skill directory structure for the specified skill.
-// It creates docs/ and scripts/ directories, generates an appropriate SKILL.md manifest,
-// copies search scripts, and copies markdown documentation files.
-// skillName: name of the skill to generate
-// sourceDir: directory containing Markdown documentation files
-// outputBase: base output directory where the skill directory will be created
+// Generate creates a complete skill directory structure for the specified skill package.
+// It sets up the directory layout, generates platform-specific manifest files, and
+// copies documentation files into the proper structure.
+//
+// The generated structure:
+//   skillName/
+//     ├── SKILL.md          # Platform-specific manifest and usage instructions
+//     └── docs/             # Markdown documentation files with YAML frontmatter
+//         ├── file1.md
+//         ├── file2.md
+//         └── ...
+//
+// Parameters:
+//   - skillName: Name of the skill (used as the directory name)
+//   - sourceDir: Directory containing source Markdown files to include in the skill
+//   - outputBase: Base directory where the skill directory will be created
+//
+// Returns an error if directories cannot be created, the manifest cannot be written,
+// or documentation files cannot be copied.
+//
+// Example:
+//   gen := New("claude")
+//   err := gen.Generate("python-docs", "./markdown", ".claude/skills")
+//   // Creates: .claude/skills/python-docs/SKILL.md and .claude/skills/python-docs/docs/*.md
 func (g *Generator) Generate(skillName, sourceDir, outputBase string) error {
 	skillDir := filepath.Join(outputBase, skillName)
 	docsDir := filepath.Join(skillDir, "docs")
@@ -61,8 +88,19 @@ func (g *Generator) Generate(skillName, sourceDir, outputBase string) error {
 	return nil
 }
 
-// createSkillMD generates the SKILL.md manifest file in the skill directory.
-// The manifest content differs based on the configured format (Claude or Codex).
+// createSkillMD generates the SKILL.md manifest file for the skill package.
+// The manifest provides instructions for AI assistants on how to use the skill,
+// including search commands, file locations, and response formatting guidelines.
+//
+// The content is customized for the target platform:
+//   - Claude format: Includes YAML frontmatter with name and description
+//   - Codex format: Uses standard Markdown headings without frontmatter
+//
+// Parameters:
+//   - skillDir: The skill's root directory where SKILL.md will be created
+//   - skillName: The skill name (used in the manifest content and metadata)
+//
+// Returns an error if the file cannot be written.
 func (g *Generator) createSkillMD(skillDir, skillName string) error {
 	skillMDPath := filepath.Join(skillDir, "SKILL.md")
 
@@ -84,7 +122,14 @@ func (g *Generator) createSkillMD(skillDir, skillName string) error {
 	return nil
 }
 
-// getClaudeSkillContent generates the SKILL.md content for Claude-compatible skills.
+// getClaudeSkillContent generates the SKILL.md manifest content for Claude Agent Skills.
+// The manifest includes YAML frontmatter and detailed instructions for Claude on how to
+// search documentation, format responses, and cite sources.
+//
+// Parameters:
+//   - skillName: The skill name (used in metadata and content)
+//
+// Returns a string containing the complete SKILL.md content formatted for Claude.
 func (g *Generator) getClaudeSkillContent(skillName string) string {
 	return fmt.Sprintf(`---
 name: %s
@@ -130,7 +175,14 @@ Options:
 `, skillName, strings.ToUpper(skillName), strings.ToUpper(skillName), strings.ToUpper(skillName))
 }
 
-// getCodexSkillContent generates the SKILL.md content for OpenAI Codex-compatible skills.
+// getCodexSkillContent generates the SKILL.md manifest content for OpenAI Codex Skills.
+// The manifest uses standard Markdown headings and provides instructions for Codex on
+// searching documentation, understanding file structure, and best practices.
+//
+// Parameters:
+//   - skillName: The skill name (used in the content)
+//
+// Returns a string containing the complete SKILL.md content formatted for Codex.
 func (g *Generator) getCodexSkillContent(skillName string) string {
 	return fmt.Sprintf(`# %s Documentation Skill
 
@@ -178,8 +230,19 @@ site2skillgo search "payment methods" --json --max-results 5 --skill-dir .
 `, strings.ToUpper(skillName), strings.ToUpper(skillName))
 }
 
-// copyMarkdownFiles copies all Markdown files from the source directory to the docs directory.
-// It performs security checks to prevent directory traversal attacks during the copy process.
+// copyMarkdownFiles copies all Markdown files from the source directory to the skill's docs directory.
+// It recursively walks the source directory and copies only .md files, flattening the structure
+// (all files go directly into docs/ regardless of source subdirectories).
+//
+// Security: Performs path validation to prevent directory traversal attacks by checking that
+// destination paths remain within the docs directory.
+//
+// Parameters:
+//   - sourceDir: Source directory containing Markdown files to copy
+//   - docsDir: Destination docs/ directory within the skill
+//
+// Returns an error if the source directory doesn't exist, files cannot be read, or the
+// destination cannot be written. Logs warnings for skipped files and info about copy progress.
 func (g *Generator) copyMarkdownFiles(sourceDir, docsDir string) error {
 	if sourceDir == "" {
 		return fmt.Errorf("source directory is empty")

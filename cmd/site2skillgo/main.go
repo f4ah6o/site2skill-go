@@ -31,9 +31,13 @@ const (
 	FormatBoth = "both"
 )
 
-// CodexConfig represents the structure of config.toml
+// CodexConfig represents the structure of the Codex configuration file (config.toml).
+// It contains feature flags that control Codex behavior, including the skills system.
 type CodexConfig struct {
+	// Features contains feature flag settings for Codex.
 	Features struct {
+		// Skills indicates whether the Codex skills feature is enabled.
+		// When true, Codex will load and use skill packages from the skills directory.
 		Skills bool `toml:"skills"`
 	} `toml:"features"`
 }
@@ -53,8 +57,16 @@ func getCodexHome() (string, error) {
 	return filepath.Join(usr.HomeDir, ".codex"), nil
 }
 
-// checkCodexSkillsConfig checks if Codex skills feature is enabled in config.toml
-// Returns: (enabled bool, configExists bool, err error)
+// checkCodexSkillsConfig checks if the Codex skills feature is enabled in the config.toml file.
+// It first locates the Codex home directory, then reads and parses the configuration file.
+//
+// Returns three values:
+//   - enabled: true if the skills feature is explicitly enabled in the config
+//   - configExists: true if the config.toml file exists (regardless of its content)
+//   - err: any error encountered while reading or parsing the config file
+//
+// If the config file does not exist, returns (false, false, nil).
+// If the file exists but cannot be parsed, returns (false, true, error).
 func checkCodexSkillsConfig() (bool, bool, error) {
 	codexHome, err := getCodexHome()
 	if err != nil {
@@ -104,6 +116,9 @@ func main() {
 	}
 }
 
+// printUsage displays the main usage information and help text for the site2skillgo command.
+// It is called when the user runs the program without arguments, with the help flag,
+// or provides an invalid subcommand.
 func printUsage() {
 	fmt.Fprintf(os.Stderr, `site2skillgo - Convert website documentation into AI skill packages
 
@@ -145,6 +160,12 @@ Supported Formats:
 `)
 }
 
+// runGenerate executes the generate subcommand, which converts website documentation
+// into AI skill packages. It parses command-line arguments, validates inputs, and
+// orchestrates the multi-step pipeline: fetch, convert, normalize, generate, validate, and package.
+//
+// args should contain the command-line arguments following the "generate" subcommand.
+// The function expects URL and skill name as positional arguments or flags.
 func runGenerate(args []string) {
 	fs := flag.NewFlagSet("generate", flag.ExitOnError)
 
@@ -223,7 +244,24 @@ Examples:
 	executeGenerate(url, skillName, global, tempDir, skipFetch, clean, format, localePriority, noLocalePriority, localeParam)
 }
 
-// determineOutputPaths determines the output directories based on format and scope (global/local)
+// determineOutputPaths determines the output directories for skill generation based on
+// the output format and installation scope.
+//
+// For Claude format:
+//   - Global: ~/.claude/skills
+//   - Local: .claude/skills (current directory)
+//
+// For Codex format:
+//   - Global: $CODEX_HOME/skills or ~/.codex/skills
+//   - Local: .codex/skills (current directory)
+//
+// Parameters:
+//   - format: The target format ("claude" or "codex")
+//   - global: If true, install to user's global skills directory; if false, use local directory
+//
+// Returns:
+//   - skillStructureDir: Directory where the skill structure will be created
+//   - skillFileDir: Directory where the .skill file will be saved (same as skillStructureDir)
 func determineOutputPaths(format string, global bool) (skillStructureDir, skillFileDir string) {
 	if global {
 		if format == FormatClaude {
@@ -255,6 +293,22 @@ func determineOutputPaths(format string, global bool) (skillStructureDir, skillF
 	return skillStructureDir, skillFileDir
 }
 
+// executeGenerate performs the complete skill generation pipeline for the given website.
+// It orchestrates all steps: fetching, converting, normalizing, generating, validating, and packaging.
+//
+// Parameters:
+//   - url: The target website URL to scrape
+//   - skillName: The name for the generated skill package
+//   - global: If true, install to global skills directory
+//   - tempDir: Temporary directory for intermediate files
+//   - skipFetch: If true, skip downloading and use existing files in tempDir
+//   - clean: If true, remove temporary directory after completion
+//   - format: Output format ("claude", "codex", or "both")
+//   - localePriority: Comma-separated list of preferred locale codes (e.g., "en,ja")
+//   - noLocalePriority: If true, disable locale priority mode
+//   - localeParam: Query parameter name for locale selection (e.g., "hl" for ?hl=ja)
+//
+// The function logs progress at each step and exits with log.Fatalf on critical errors.
 func executeGenerate(url, skillName string, global bool, tempDir string, skipFetch, clean bool, format, localePriority string, noLocalePriority bool, localeParam string) {
 	// Check Codex skills configuration if generating codex format
 	if format == FormatCodex || format == FormatBoth {
@@ -478,7 +532,19 @@ func executeGenerate(url, skillName string, global bool, tempDir string, skipFet
 	}
 }
 
-// reconstructURL reconstructs the original URL from the crawl path
+// reconstructURL reconstructs the original website URL from a crawled file's relative path.
+// It removes the .html extension and prepends the appropriate scheme (http or https).
+//
+// Parameters:
+//   - baseURL: The base URL of the crawled site (used to determine scheme)
+//   - relPath: The relative file path from the crawl directory
+//
+// Returns the reconstructed URL as a string with the format "scheme://path".
+//
+// Example:
+//   baseURL: "https://example.com"
+//   relPath: "docs/api/index.html"
+//   returns: "https://docs/api/index"
 func reconstructURL(baseURL, relPath string) string {
 	// Remove .html extension if present
 	if len(relPath) > 5 && relPath[len(relPath)-5:] == ".html" {
@@ -494,7 +560,17 @@ func reconstructURL(baseURL, relPath string) string {
 	return fmt.Sprintf("%s://%s", scheme, relPath)
 }
 
-// sanitizeFilename removes invalid characters from filename
+// sanitizeFilename removes invalid characters from a filename to ensure cross-platform compatibility.
+// It replaces any character that is not alphanumeric, dot, underscore, or hyphen with an underscore.
+//
+// Parameters:
+//   - name: The filename to sanitize
+//
+// Returns a sanitized filename safe for use on all major operating systems.
+//
+// Example:
+//   "hello world!.txt" -> "hello_world_.txt"
+//   "file/path\\name" -> "file_path_name"
 func sanitizeFilename(name string) string {
 	// Replace non-alphanumeric characters (except ._-) with _
 	result := ""
@@ -509,7 +585,18 @@ func sanitizeFilename(name string) string {
 	return result
 }
 
-// parseLocales parses a comma-separated locale string into a slice
+// parseLocales parses a comma-separated locale string into a slice of locale codes.
+// It trims whitespace from each locale code and filters out empty strings.
+//
+// Parameters:
+//   - s: A comma-separated string of locale codes (e.g., "en, ja, zh")
+//
+// Returns a slice of trimmed, non-empty locale codes.
+// Returns nil if the input string is empty.
+//
+// Example:
+//   "en, ja , zh" -> ["en", "ja", "zh"]
+//   "" -> nil
 func parseLocales(s string) []string {
 	if s == "" {
 		return nil
@@ -524,7 +611,14 @@ func parseLocales(s string) []string {
 	return result
 }
 
-// splitByComma splits a string by commas
+// splitByComma splits a string into parts separated by comma characters.
+// Unlike strings.Split, this implementation manually iterates through the string.
+//
+// Parameters:
+//   - s: The string to split
+//
+// Returns a slice of substrings separated by commas.
+// Empty parts are included in the result.
 func splitByComma(s string) []string {
 	var result []string
 	start := 0
@@ -538,7 +632,13 @@ func splitByComma(s string) []string {
 	return result
 }
 
-// trimSpace trims leading and trailing whitespace
+// trimSpace removes leading and trailing spaces and tabs from a string.
+// Unlike strings.TrimSpace, this only removes space and tab characters, not all Unicode whitespace.
+//
+// Parameters:
+//   - s: The string to trim
+//
+// Returns the string with leading and trailing spaces and tabs removed.
 func trimSpace(s string) string {
 	start := 0
 	end := len(s)
@@ -551,6 +651,14 @@ func trimSpace(s string) string {
 	return s[start:end]
 }
 
+// runSearch executes the search subcommand, which searches through skill documentation files
+// for keywords and displays matching results with context.
+//
+// The function parses command-line arguments, performs the search operation, and formats
+// the results either as human-readable text or JSON based on the --json flag.
+//
+// args should contain the command-line arguments following the "search" subcommand.
+// The function expects the search query as the first positional argument.
 func runSearch(args []string) {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 

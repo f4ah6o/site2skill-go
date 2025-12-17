@@ -13,19 +13,42 @@ import (
 	"strings"
 )
 
-// Packager creates .skill files from skill directories.
+// Packager creates .skill files (ZIP archives) from skill directories.
+// .skill files are ZIP archives containing the complete skill structure:
+// SKILL.md manifest, documentation files, and optional scripts. These archives
+// can be distributed and installed for use with Claude or Codex.
 type Packager struct{}
 
 // New creates a new Packager instance.
+//
+// Returns a Packager ready to create .skill archives.
 func New() *Packager {
 	return &Packager{}
 }
 
-// Package creates a .skill file (ZIP archive) from the skill directory.
-// It recursively includes all files and directories from skillDir.
-// skillDir: path to the skill directory to package
-// outputDir: directory where the .skill file will be created
-// Returns the path to the created .skill file or an error.
+// Package creates a .skill file (ZIP archive) from a skill directory.
+// The entire skill directory structure is compressed into a single .skill file,
+// which is a ZIP archive with a .skill extension for easy distribution.
+//
+// The archive structure preserves the original directory layout:
+//   skillname.skill (ZIP archive containing:)
+//     ├── SKILL.md
+//     └── docs/
+//         ├── file1.md
+//         └── file2.md
+//
+// All files are compressed using DEFLATE compression. Directory entries are included
+// in the archive to preserve empty directories if present.
+//
+// Parameters:
+//   - skillDir: Path to the skill directory to package (e.g., ".claude/skills/myskill")
+//   - outputDir: Directory where the .skill file will be created (e.g., ".claude/skills")
+//
+// Returns:
+//   - The full path to the created .skill file (e.g., ".claude/skills/myskill.skill")
+//   - An error if the skill directory doesn't exist, cannot be read, or the archive cannot be created
+//
+// The .skill file is named after the skill directory's basename (e.g., "myskill" -> "myskill.skill").
 func (p *Packager) Package(skillDir, outputDir string) (string, error) {
 	// Check if skill directory exists
 	if info, err := os.Stat(skillDir); os.IsNotExist(err) || !info.IsDir() {

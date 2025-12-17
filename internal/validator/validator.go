@@ -13,19 +13,36 @@ import (
 	"strings"
 )
 
-// Validator validates skill directory structures and content.
+// Validator validates skill directory structures and content to ensure they meet
+// platform requirements and are properly formatted for use with Claude or Codex.
+// It checks for required files, valid frontmatter, and size constraints.
 type Validator struct{}
 
 // New creates a new Validator instance.
+//
+// Returns a Validator ready to validate skill directories.
 func New() *Validator {
 	return &Validator{}
 }
 
-// Validate checks that a skill directory has the required structure and content.
-// It verifies the presence of SKILL.md, docs/ directory with Markdown files,
-// validates YAML frontmatter, and analyzes skill size.
-// skillDir: path to the skill directory to validate
-// Returns true if validation passes, false otherwise.
+// Validate performs comprehensive validation of a skill directory structure and content.
+//
+// Validation checks:
+//   1. Directory existence
+//   2. SKILL.md file presence and frontmatter (name, description fields)
+//   3. docs/ directory with at least one .md file
+//   4. Optional scripts/ directory detection
+//   5. Size analysis (warns if > 8MB uncompressed for Claude compatibility)
+//
+// Parameters:
+//   - skillDir: Path to the skill directory root to validate
+//
+// Returns:
+//   - true if all required checks pass (warnings are logged but don't fail validation)
+//   - false if any critical checks fail (missing required files or directories)
+//
+// The validator logs detailed information about each check, including warnings for
+// non-critical issues like missing frontmatter fields or size concerns.
 func (v *Validator) Validate(skillDir string) bool {
 	log.Printf("Validating skill in: %s", skillDir)
 
@@ -120,17 +137,29 @@ func (v *Validator) Validate(skillDir string) bool {
 	return true
 }
 
-// fileSize represents the size and location of a file for analysis.
+// fileSize represents metadata about a file's size and location for analysis purposes.
+// Used during skill size validation to identify large files and provide detailed reports.
 type fileSize struct {
-	// size is the file size in bytes.
+	// size is the file size in bytes
 	size int64
-	// path is the absolute file path.
+	// path is the absolute or relative file path
 	path string
 }
 
-// checkSkillSize analyzes the total size of documentation files in the skill.
-// It logs warnings if the skill exceeds Claude's 8MB uncompressed size limit
-// and lists the 10 largest files for debugging purposes.
+// checkSkillSize analyzes the total uncompressed size of the skill's documentation files.
+// It calculates the total size, checks against Claude's 8MB limit, and reports the
+// 10 largest files to help identify optimization opportunities.
+//
+// Claude Agent Skills have an 8MB uncompressed size limit. Skills exceeding this may
+// fail to load. This function provides early warning and detailed size breakdown.
+//
+// Parameters:
+//   - skillDir: Path to the skill directory root
+//
+// The function logs:
+//   - Total uncompressed size in MB
+//   - Warning if size exceeds 8MB
+//   - List of the 10 largest files with sizes
 func (v *Validator) checkSkillSize(skillDir string) {
 	docsDir := filepath.Join(skillDir, "docs")
 	if _, err := os.Stat(docsDir); os.IsNotExist(err) {
