@@ -1,0 +1,248 @@
+name: site2skill hub (issue -> crawl -> release)
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+  actions: read
+
+concurrency:
+  group: site2skill-hub
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    if: ${{ github.event.issue.user.login == github.repository_owner }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # 45分も待つ必要はないはず
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------------
+      # 1. Parse & Validate
+      # ----------------------------------------------------------------
+      - name: Parse and Validate
+        id: parse
+        shell: bash
+        run: |
+          set -euo pipefail
+          body='${{ github.event.issue.body }}'
+
+          # Extract
+          URL="$(printf "%s\n" "$body" | sed -n 's/^[[:space:]]*url:[[:space:]]*//p' | head -n 1 | tr -d '\r')"
+          NAME="$(printf "%s\n" "$body" | sed -n 's/^[[:space:]]*name:[[:space:]]*//p' | head -n 1 | tr -d '\r')"
+
+          echo "url=$URL"   >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+          # Validation
+          IS_VALID="true"
+          if [[ -z "$URL" || -z "$NAME" ]]; then IS_VALID="false"; fi
+          if [[ ! "$URL" =~ ^https:// ]]; then IS_VALID="false"; fi
+          if echo "$URL" | grep -Eqi 'https://(localhost|127\.|0\.0\.0\.0|169\.254\.169\.254|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)'; then IS_VALID="false"; fi
+          if echo "$NAME" | grep -Eq '[^a-zA-Z0-9._-]'; then IS_VALID="false"; fi
+          
+          echo "is_valid=$IS_VALID" >> "$GITHUB_OUTPUT"
+
+      - name: Comment if invalid
+        if: ${{ steps.parse.outputs.is_valid == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} \
+            --body "入力が不正/不足です。Issue本文に以下を含めてください：
+            - url: https://... (https限定, プライベートIP不可)
+            - name: skill-name (英数 . _ - のみ)"
+
+      # ----------------------------------------------------------------
+      # 2. Check Interval (Skip if blocked)
+      #    ※ is_valid == 'true' の場合のみ実行
+      # ----------------------------------------------------------------
+      - name: Check Interval Rules
+        id: interval
+        if: ${{ steps.parse.outputs.is_valid == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='${{ steps.parse.outputs.url }}'
+          
+          # release assets取得用ディレクトリ
+          mkdir -p hub
+
+          # index.json 取得 (なければ空)
+          if gh release view skills >/dev/null 2>&1; then
+            gh release download skills -p index.json -D hub || echo '{}' > hub/index.json
+          else
+            echo '{}' > hub/index.json
+          fi
+
+          # Pythonで判定 (Exit code 0 で返すこと)
+          RESULT=$(python3 - <<'PY'
+import json, sys, time
+from urllib.parse import urlparse
+
+idx_path="hub/index.json"
+url=sys.argv[1]
+now=int(time.time())
+
+try:
+  data=json.load(open(idx_path,"r",encoding="utf-8"))
+except:
+  data={}
+
+domain = urlparse(url).netloc.lower()
+d_last = data.get("domain_last",{}).get(domain, 0)
+u_last = data.get("url_last",{}).get(url, 0)
+
+# Rules: domain 24h, url 7d
+if (now - d_last) < 86400:
+    print("BLOCKED")
+elif (now - u_last) < 604800:
+    print("BLOCKED")
+else:
+    print("OK")
+PY "$URL")
+
+          if [ "$RESULT" = "BLOCKED" ]; then
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "blocked=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment if blocked
+        if: ${{ steps.parse.outputs.is_valid == 'true' && steps.interval.outputs.blocked == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} \
+            --body "クロール間隔ルールによりスキップしました。(Domain: 24h / URL: 7d)"
+
+      # ----------------------------------------------------------------
+      # 3. Execution (Only if Valid AND Not Blocked)
+      # ----------------------------------------------------------------
+      - name: Setup Go
+        if: ${{ steps.parse.outputs.is_valid == 'true' && steps.interval.outputs.blocked == 'false' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install site2skillgo
+        if: ${{ steps.parse.outputs.is_valid == 'true' && steps.interval.outputs.blocked == 'false' }}
+        run: go install github.com/f4ah6o/site2skill-go/cmd/site2skillgo@latest
+
+      - name: Generate skill
+        id: gen
+        if: ${{ steps.parse.outputs.is_valid == 'true' && steps.interval.outputs.blocked == 'false' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='${{ steps.parse.outputs.url }}'
+          NAME='${{ steps.parse.outputs.name }}'
+          
+          TOOLVER="$(site2skillgo version 2>/dev/null || echo 'unknown')"
+          KEY="${URL}|${NAME}|${TOOLVER}"
+          HASH="$(printf "%s" "$KEY" | sha256sum | awk '{print $1}')"
+          
+          mkdir -p dist
+          site2skillgo generate "$URL" "$NAME" --format both --output dist
+          
+          ZIP="$(ls -1 dist/*.zip | head -n 1)"
+          OUT="dist/${NAME}--${HASH}.zip"
+          mv "$ZIP" "$OUT"
+          
+          echo "zip=$OUT" >> "$GITHUB_OUTPUT"
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "toolver=$TOOLVER" >> "$GITHUB_OUTPUT"
+
+      - name: Update Index & Release
+        if: ${{ steps.parse.outputs.is_valid == 'true' && steps.interval.outputs.blocked == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 変数準備
+          URL='${{ steps.parse.outputs.url }}'
+          NAME='${{ steps.parse.outputs.name }}'
+          HASH='${{ steps.gen.outputs.hash }}'
+          TOOLVER='${{ steps.gen.outputs.toolver }}'
+          ZIP_FILE='${{ steps.gen.outputs.zip }}'
+          ZIP_BASE="$(basename "$ZIP_FILE")"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          NOW="$(date +%s)"
+
+          # index.json 更新 (Python)
+          python3 - <<PY
+import json, sys
+from urllib.parse import urlparse
+
+idx_path="hub/index.json"
+# args: 1=url, 2=name, 3=hash, 4=toolver, 5=run_url, 6=zip_base, 7=now
+args = sys.argv
+url, name, hashv, toolver, run_url, zip_base = args[1], args[2], args[3], args[4], args[5], args[6]
+now = int(args[7])
+domain = urlparse(url).netloc.lower()
+
+try:
+    with open(idx_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except:
+    data = {}
+
+data.setdefault("items", [])
+data.setdefault("domain_last", {})
+data.setdefault("url_last", {})
+
+# Remove old entry with same hash if any, prepend new
+items = [it for it in data["items"] if it.get("hash") != hashv]
+items.append({
+    "hash": hashv, "name": name, "url": url, "domain": domain,
+    "zip": zip_base, "generated_at": now, "tool_version": toolver, "run_url": run_url
+})
+# Sort by generated_at desc
+data["items"] = sorted(items, key=lambda x: x.get("generated_at", 0), reverse=True)
+
+data["domain_last"][domain] = now
+data["url_last"][url] = now
+
+with open(idx_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+PY "$URL" "$NAME" "$HASH" "$TOOLVER" "$RUN_URL" "$ZIP_BASE" "$NOW"
+
+          # Release作成・アップロード
+          if ! gh release view skills >/dev/null 2>&1; then
+            gh release create skills --title "Skills registry" --notes "Generated skills."
+          fi
+          gh release upload skills "$ZIP_FILE" hub/index.json --clobber
+          
+          # 成功コメント
+          REL="${{ github.server_url }}/${{ github.repository }}/releases/tag/skills"
+          gh issue comment ${{ github.event.issue.number }} \
+            --body "生成完了: ${NAME} (Hash: \`${HASH}\`)
+            - Download: [Release Assets](${REL})
+            - Source: ${URL}"
+
+      # ----------------------------------------------------------------
+      # 4. Error Handling (本当に失敗したときだけ)
+      # ----------------------------------------------------------------
+      - name: Create failure issue
+        # validation/blocked は正常系(Success)なので failure() にはならない。
+        # generate などの実行時エラーのみここで拾う
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          URL='${{ steps.parse.outputs.url }}'
+          NAME='${{ steps.parse.outputs.name }}'
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          gh issue create --title "Crawl failed: ${NAME}" \
+            --body "失敗しました。\nTarget: ${URL}\nRun: ${RUN_URL}" \
+            --label "crawl-failed"
