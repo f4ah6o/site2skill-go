@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/f4ah6o/site2skill-go/internal/converter"
 	"github.com/f4ah6o/site2skill-go/internal/fetcher"
 	"github.com/f4ah6o/site2skill-go/internal/normalizer"
@@ -28,6 +30,35 @@ const (
 	// FormatBoth specifies output format for both Claude and Codex skill packages.
 	FormatBoth = "both"
 )
+
+// CodexConfig represents the structure of ~/.codex/config.toml
+type CodexConfig struct {
+	Features struct {
+		Skills bool `toml:"skills"`
+	} `toml:"features"`
+}
+
+// checkCodexSkillsConfig checks if Codex skills feature is enabled in ~/.codex/config.toml
+// Returns: (enabled bool, configExists bool, err error)
+func checkCodexSkillsConfig() (bool, bool, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return false, false, fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	configPath := filepath.Join(usr.HomeDir, ".codex", "config.toml")
+
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return false, false, nil
+	}
+
+	var config CodexConfig
+	if _, err := toml.DecodeFile(configPath, &config); err != nil {
+		return false, true, fmt.Errorf("failed to parse %s: %w", configPath, err)
+	}
+
+	return config.Features.Skills, true, nil
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -169,6 +200,22 @@ Examples:
 }
 
 func executeGenerate(url, skillName, output, skillOutput, tempDir string, skipFetch, clean bool, format, localePriority string, noLocalePriority bool, localeParam string) {
+	// Check Codex skills configuration if generating codex format
+	if format == FormatCodex || format == FormatBoth {
+		enabled, configExists, err := checkCodexSkillsConfig()
+		if err != nil {
+			log.Printf("Warning: %v", err)
+		} else if !configExists {
+			log.Printf("Info: ~/.codex/config.toml not found. To enable Codex skills, create the file with:")
+			log.Printf("  [features]")
+			log.Printf("  skills = true")
+		} else if !enabled {
+			log.Printf("Info: Codex skills feature is not enabled. To enable it, add the following to ~/.codex/config.toml:")
+			log.Printf("  [features]")
+			log.Printf("  skills = true")
+		}
+	}
+
 	// Setup directories
 	tempDownloadDir := filepath.Join(tempDir, "download")
 	tempMdDir := filepath.Join(tempDir, "markdown")

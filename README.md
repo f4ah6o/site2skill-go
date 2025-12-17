@@ -45,10 +45,10 @@ Download the latest release from the [releases page](https://github.com/f4ah6o/s
 site2skillgo generate https://f4ah6o.github.io/site2skill-go/ myskill
 
 # Generate a Codex skill
-site2skillgo generate https://f4ah6o.github.io/site2skill-go/ myskill --format codex
+site2skillgo generate --format codex https://f4ah6o.github.io/site2skill-go/ myskill
 
 # Generate both Claude and Codex skills
-site2skillgo generate https://f4ah6o.github.io/site2skill-go/ myskill --format both
+site2skillgo generate --format both https://f4ah6o.github.io/site2skill-go/ myskill
 ```
 
 ### Commands
@@ -98,16 +98,16 @@ site2skillgo search <QUERY> [options]
 site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill
 
 # Create a Codex skill
-site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --format codex
+site2skillgo generate --format codex https://f4ah6o.github.io/site2skill-go/ site2skill
 
 # Create both Claude and Codex skills
-site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --format both
+site2skillgo generate --format both https://f4ah6o.github.io/site2skill-go/ site2skill
 
 # Custom output directory
-site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --output ./my-skills --clean
+site2skillgo generate --output ./my-skills --clean https://f4ah6o.github.io/site2skill-go/ site2skill
 
 # Skip fetching (reuse downloaded files)
-site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --skip-fetch
+site2skillgo generate --skip-fetch https://f4ah6o.github.io/site2skill-go/ site2skill
 
 # Search in skill documentation
 site2skillgo search "authentication" --skill-dir .claude/skills/site2skill
@@ -151,6 +151,13 @@ Use the built-in `site2skillgo search` command to search through documentation f
 - Plain markdown structure
 - JSON output support
 - Simplified search interface
+
+> **Note**: To use Codex skills, you need to enable the skills feature in `~/.codex/config.toml`:
+> ```toml
+> [features]
+> skills = true
+> ```
+> When generating with `--format codex` or `--format both`, a reminder will be displayed if this setting is missing.
 
 ### Both Format
 - Generates both Claude and Codex skill packages from the same documentation source
