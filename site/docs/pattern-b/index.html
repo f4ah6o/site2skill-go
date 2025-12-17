@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pattern B: Query-based Locale - site2skill-go Documentation</title>
+    <link rel="alternate" hreflang="ja" href="/site2skill-go/docs/pattern-b/?lang=ja">
+    <link rel="alternate" hreflang="en" href="/site2skill-go/docs/pattern-b/?lang=en">
+    <link rel="alternate" hreflang="zh-tw" href="/site2skill-go/docs/pattern-b/?lang=zh-tw">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --border: #30363d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            color: var(--accent);
+            margin: 2rem 0 1rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        code {
+            background: #161b22;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .lang-switcher {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #161b22;
+            border-radius: 8px;
+        }
+
+        .lang-switcher a {
+            margin-right: 1rem;
+        }
+
+        .locale-info {
+            background: #2ea04322;
+            border: 1px solid #2ea043;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="lang-switcher">🌐 <span id="lang-label">Language:</span>
+            <a href="/site2skill-go/docs/pattern-b/?lang=ja">日本語</a> |
+            <a href="/site2skill-go/docs/pattern-b/?lang=en">English</a> |
+            <a href="/site2skill-go/docs/pattern-b/?lang=zh-tw">繁體中文</a>
+        </div>
+        <h1 id="title">Query Parameter Locale</h1>
+        <div class="locale-info">
+            <strong id="info-label">Locale Info:</strong><br>
+            <span id="path-info">Path: <code>/docs/pattern-b/</code></span><br>
+            <span id="query-info">Query Parameter: <code id="query-param">lang=en</code></span><br>
+            <span id="pattern-info">Pattern: Query-based locale (Pattern B)</span>
+        </div>
+        <h2 id="content-title">Content Title</h2>
+        <p id="content-desc">Content description</p>
+        <p><a href="/site2skill-go/">← <span id="back-link">Back to Home</span></a></p>
+    </div>
+
+    <script>
+        // Get language from query parameter, default to 'en'
+        const params = new URLSearchParams(window.location.search);
+        const lang = params.get('lang') || 'en';
+
+        // Define translations
+        const translations = {
+            en: {
+                'lang-label': 'Language:',
+                'title': '🚀 Query Parameter Locale Test',
+                'info-label': 'Locale Info:',
+                'path-info': 'Path: <code>/docs/pattern-b/</code>',
+                'query-param': `lang=${lang}`,
+                'pattern-info': 'Pattern: Query-based locale (Pattern B)',
+                'content-title': 'What is site2skill-go?',
+                'content-desc': '<code>site2skill-go</code> is a tool that crawls documentation websites and converts them into skill packages for Claude and Codex agents.',
+                'back-link': 'Back to Home'
+            },
+            ja: {
+                'lang-label': '言語:',
+                'title': '🚀 クエリパラメータロケールテスト',
+                'info-label': 'ロケール情報:',
+                'path-info': 'パス: <code>/docs/pattern-b/</code>',
+                'query-param': `lang=${lang}`,
+                'pattern-info': 'パターン: Query-based locale (Pattern B)',
+                'content-title': 'site2skill-go とは？',
+                'content-desc': '<code>site2skill-go</code> は、ドキュメントウェブサイトをクロールし、Claude や Codex エージェント用のスキルパッケージに変換するツールです。',
+                'back-link': 'トップページへ戻る'
+            },
+            'zh-tw': {
+                'lang-label': '語言:',
+                'title': '🚀 查詢參數地區設定測試',
+                'info-label': '地區設定資訊:',
+                'path-info': '路徑: <code>/docs/pattern-b/</code>',
+                'query-param': `lang=${lang}`,
+                'pattern-info': '模式: 查詢參數地區設定 (Pattern B)',
+                'content-title': '什麼是 site2skill-go？',
+                'content-desc': '<code>site2skill-go</code> 是一個爬取文件網站的工具，可將其轉換為 Claude 和 Codex 代理的技能包。',
+                'back-link': '返回首頁'
+            }
+        };
+
+        // Validate language
+        if (!translations[lang]) {
+            window.location.search = '?lang=en';
+        }
+
+        // Apply translations
+        const t = translations[lang];
+        document.documentElement.lang = lang;
+        document.querySelector('title').textContent = `Pattern B: ${t['title']} - site2skill-go`;
+
+        document.getElementById('lang-label').textContent = t['lang-label'];
+        document.getElementById('title').textContent = t['title'];
+        document.getElementById('info-label').textContent = t['info-label'];
+        document.getElementById('path-info').innerHTML = t['path-info'];
+        document.getElementById('query-param').textContent = t['query-param'];
+        document.getElementById('pattern-info').textContent = t['pattern-info'];
+        document.getElementById('content-title').textContent = t['content-title'];
+        document.getElementById('content-desc').innerHTML = t['content-desc'];
+        document.getElementById('back-link').textContent = t['back-link'];
+    </script>
+</body>
+
+</html>
