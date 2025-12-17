@@ -91,46 +91,18 @@
 
 <body>
     <div class="container">
-        <div class="lang-switcher">
-            🌐 語言:
-            <a href="/docs/ja/getting-started/">日本語</a> |
-            <a href="/docs/en/getting-started/">English</a> |
-            <strong>繁體中文</strong>
-        </div>
-
+        <div class="lang-switcher">🌐 語言: <a href="/docs/ja/getting-started/">日本語</a> | <a
+                href="/docs/en/getting-started/">English</a> | <strong>繁體中文</strong></div>
         <h1>🚀 開始使用</h1>
-
-        <div class="locale-info">
-            <strong>地區設定資訊:</strong><br>
-            路徑: <code>/docs/zh-tw/getting-started/</code><br>
-            語言代碼: <code>zh-tw</code><br>
-            模式: 路徑式地區設定 (Pattern A)
-        </div>
-
+        <div class="locale-info"><strong>地區設定資訊:</strong><br>路徑: <code>/docs/zh-tw/getting-started/</code><br>語言代碼:
+            <code>zh-tw</code><br>模式: 路徑式地區設定 (Pattern A)</div>
         <h2>什麼是 site2skill-go？</h2>
-        <p>
-            <code>site2skill-go</code> 是一個爬取文件網站的工具，
-            可將其轉換為 Claude 和 Codex 代理的技能包。
-        </p>
-
+        <p><code>site2skill-go</code> 是一個爬取文件網站的工具，可將其轉換為 Claude 和 Codex 代理的技能包。</p>
         <h2>安裝</h2>
         <pre><code>go install github.com/f4ah6o/site2skill-go/cmd/site2skillgo@latest</code></pre>
-
         <h2>基本用法</h2>
         <pre><code># 產生 Claude 技能
-site2skillgo generate https://docs.example.com myskill
-
-# 產生 Codex 技能
-site2skillgo generate https://docs.example.com myskill --format codex</code></pre>
-
-        <h2>功能</h2>
-        <ul style="margin: 1rem 0 1rem 2rem;">
-            <li>🌐 內建網頁爬蟲</li>
-            <li>📝 HTML 轉 Markdown</li>
-            <li>🔍 全文搜尋</li>
-            <li>✅ 自動驗證</li>
-        </ul>
-
+site2skillgo generate https://docs.example.com myskill</code></pre>
         <p><a href="/">← 返回首頁</a></p>
     </div>
 </body>
