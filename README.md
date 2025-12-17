@@ -65,7 +65,9 @@ site2skillgo generate <URL> <SKILL_NAME> [options]
 - `--format string`
   - Output format: `claude`, `codex`, or `both` (default "claude")
 - `--global`
-  - Install to global skills directory (`~/.claude/skills` or `~/.codex/skills`)
+  - Install to global skills directory
+  - Claude: `~/.claude/skills`
+  - Codex: `$CODEX_HOME/skills` (or `~/.codex/skills` if `$CODEX_HOME` is not set)
   - Default: local installation (`./.claude/skills` or `./.codex/skills`)
 - `--temp-dir string`
   - Temporary directory for processing (default "build")
@@ -115,6 +117,12 @@ site2skillgo search "authentication" --skill-dir .claude/skills/site2skill
 site2skillgo search "api endpoint" --json --max-results 5 --skill-dir .claude/skills/site2skill
 ```
 
+## Environment Variables
+
+- **`CODEX_HOME`**: Specifies the Codex home directory (default: `~/.codex`)
+  - When set, Codex skills will be installed to `$CODEX_HOME/skills` instead of `~/.codex/skills`
+  - Config file location: `$CODEX_HOME/config.toml`
+
 ## How it works
 
 1. **Fetch**: Downloads the documentation site recursively using built-in HTTP crawler
@@ -150,6 +158,13 @@ Use the built-in `site2skillgo search` command to search through documentation f
 - Plain markdown structure
 - JSON output support
 - Simplified search interface
+
+> **Note**: To use Codex skills, you need to enable the skills feature in `$CODEX_HOME/config.toml` (or `~/.codex/config.toml` if `$CODEX_HOME` is not set):
+> ```toml
+> [features]
+> skills = true
+> ```
+> When generating with `--format codex` or `--format both`, a reminder will be displayed if this setting is missing.
 
 ### Both Format
 - Generates both Claude and Codex skill packages from the same documentation source

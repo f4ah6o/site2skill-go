@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/f4ah6o/site2skill-go/internal/converter"
 	"github.com/f4ah6o/site2skill-go/internal/fetcher"
 	"github.com/f4ah6o/site2skill-go/internal/normalizer"
@@ -30,6 +31,49 @@ const (
 	FormatBoth = "both"
 )
 
+// CodexConfig represents the structure of config.toml
+type CodexConfig struct {
+	Features struct {
+		Skills bool `toml:"skills"`
+	} `toml:"features"`
+}
+
+// getCodexHome returns the Codex home directory.
+// It checks the CODEX_HOME environment variable first, then falls back to ~/.codex
+func getCodexHome() (string, error) {
+	if codexHome := os.Getenv("CODEX_HOME"); codexHome != "" {
+		return codexHome, nil
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	return filepath.Join(usr.HomeDir, ".codex"), nil
+}
+
+// checkCodexSkillsConfig checks if Codex skills feature is enabled in config.toml
+// Returns: (enabled bool, configExists bool, err error)
+func checkCodexSkillsConfig() (bool, bool, error) {
+	codexHome, err := getCodexHome()
+	if err != nil {
+		return false, false, err
+	}
+
+	configPath := filepath.Join(codexHome, "config.toml")
+
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return false, false, nil
+	}
+
+	var config CodexConfig
+	if _, err := toml.DecodeFile(configPath, &config); err != nil {
+		return false, true, fmt.Errorf("failed to parse %s: %w", configPath, err)
+	}
+
+	return config.Features.Skills, true, nil
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -171,16 +215,19 @@ Examples:
 // determineOutputPaths determines the output directories based on format and scope (global/local)
 func determineOutputPaths(format string, global bool) (skillStructureDir, skillFileDir string) {
 	if global {
-		usr, err := user.Current()
-		if err != nil {
-			log.Fatalf("Failed to get current user: %v", err)
-		}
-
 		if format == FormatClaude {
+			usr, err := user.Current()
+			if err != nil {
+				log.Fatalf("Failed to get current user: %v", err)
+			}
 			skillStructureDir = filepath.Join(usr.HomeDir, ".claude", "skills")
 			skillFileDir = skillStructureDir
 		} else if format == FormatCodex {
-			skillStructureDir = filepath.Join(usr.HomeDir, ".codex", "skills")
+			codexHome, err := getCodexHome()
+			if err != nil {
+				log.Fatalf("Failed to get Codex home directory: %v", err)
+			}
+			skillStructureDir = filepath.Join(codexHome, "skills")
 			skillFileDir = skillStructureDir
 		}
 	} else {
@@ -198,6 +245,26 @@ func determineOutputPaths(format string, global bool) (skillStructureDir, skillF
 }
 
 func executeGenerate(url, skillName string, global bool, tempDir string, skipFetch, clean bool, format, localePriority string, noLocalePriority bool, localeParam string) {
+	// Check Codex skills configuration if generating codex format
+	if format == FormatCodex || format == FormatBoth {
+		enabled, configExists, err := checkCodexSkillsConfig()
+		if err != nil {
+			log.Printf("Warning: %v", err)
+		} else if !configExists {
+			codexHome, _ := getCodexHome()
+			configPath := filepath.Join(codexHome, "config.toml")
+			log.Printf("Info: %s not found. To enable Codex skills, create the file with:", configPath)
+			log.Printf("  [features]")
+			log.Printf("  skills = true")
+		} else if !enabled {
+			codexHome, _ := getCodexHome()
+			configPath := filepath.Join(codexHome, "config.toml")
+			log.Printf("Info: Codex skills feature is not enabled. To enable it, add the following to %s:", configPath)
+			log.Printf("  [features]")
+			log.Printf("  skills = true")
+		}
+	}
+
 	// Determine output directories based on format and global flag
 	var output, skillOutput string
 
