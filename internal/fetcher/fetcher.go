@@ -25,26 +25,35 @@ import (
 
 // Fetcher crawls and downloads website content.
 type Fetcher struct {
-	outputDir     string
-	domain        string
-	visited       map[string]bool
-	mu            sync.Mutex
-	maxDepth      int
-	downloadCount int
-	startTime     time.Time
-	client        *http.Client
+	outputDir        string
+	domain           string
+	visited          map[string]bool
+	visitedCanonical map[string]bool // canonical path の重複管理（ロケール優先モード用）
+	mu               sync.Mutex
+	maxDepth         int
+	downloadCount    int
+	startTime        time.Time
+	client           *http.Client
+	localeConfig     *LocaleConfig // ロケール優先設定（nil で無効）
 }
 
 // New creates a new Fetcher instance configured to save downloads to outputDir.
 func New(outputDir string) *Fetcher {
 	return &Fetcher{
-		outputDir: outputDir,
-		visited:   make(map[string]bool),
-		maxDepth:  5,
+		outputDir:        outputDir,
+		visited:          make(map[string]bool),
+		visitedCanonical: make(map[string]bool),
+		maxDepth:         5,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+// SetLocaleConfig はロケール優先設定を行う
+// cfg が nil でない場合、ロケール優先モードが有効になる
+func (f *Fetcher) SetLocaleConfig(cfg *LocaleConfig) {
+	f.localeConfig = cfg
 }
 
 // Fetch downloads the website starting at targetURL, recursively following
@@ -107,7 +116,28 @@ func (f *Fetcher) crawl(targetURL, crawlDir string, depth int) error {
 		return nil
 	}
 
-	// Check if already visited
+	// ロケール優先モードの場合、canonical path ベースで重複チェック
+	if f.localeConfig != nil {
+		parsedURL, err := url.Parse(targetURL)
+		if err != nil {
+			return nil
+		}
+
+		_, canonical := ExtractLocale(parsedURL, f.localeConfig)
+		
+		f.mu.Lock()
+		if f.visitedCanonical[canonical] {
+			f.mu.Unlock()
+			return nil
+		}
+		f.visitedCanonical[canonical] = true
+		f.mu.Unlock()
+
+		// ロケール優先クロール
+		return f.crawlWithLocalePriority(targetURL, canonical, crawlDir, depth)
+	}
+
+	// Check if already visited (従来モード)
 	f.mu.Lock()
 	if f.visited[targetURL] {
 		f.mu.Unlock()
@@ -375,4 +405,183 @@ func decodeWithEncoding(body []byte, enc encoding.Encoding) (string, error) {
 		return "", err
 	}
 	return string(decoded), nil
+}
+
+// crawlWithLocalePriority はロケール優先モードでクロールする
+// 優先順位に従ってロケールを試行し、最初に見つかったものを取得する
+func (f *Fetcher) crawlWithLocalePriority(originalURL, canonical, crawlDir string, depth int) error {
+	parsedURL, err := url.Parse(originalURL)
+	if err != nil {
+		return nil
+	}
+
+	// Only crawl same domain
+	if parsedURL.Host != f.domain {
+		return nil
+	}
+
+	// Skip non-HTML resources
+	if isNonHTMLResource(originalURL) {
+		return nil
+	}
+
+	baseURL := parsedURL.Scheme + "://" + parsedURL.Host
+
+	// 優先順位に従ってロケールを試行
+	priority := f.localeConfig.Priority
+	if len(priority) == 0 {
+		priority = DefaultLocalePriority
+	}
+
+	var fetchURL string
+	var foundLocale string
+
+	// まず各ロケールでHEADリクエストを試行
+	for _, locale := range priority {
+		testURL := BuildLocaleURL(baseURL, locale, canonical, f.localeConfig)
+		exists, statusCode := f.checkURLExists(testURL)
+
+		if exists {
+			fetchURL = testURL
+			foundLocale = locale
+			break
+		}
+
+		// 404以外のエラーは異常系として中断
+		if statusCode != http.StatusNotFound && statusCode != 0 {
+			if statusCode == http.StatusForbidden || statusCode == http.StatusTooManyRequests || statusCode >= 500 {
+				log.Printf("Warning: %s returned status %d, skipping canonical %s", testURL, statusCode, canonical)
+				return nil
+			}
+		}
+	}
+
+	// 優先ロケールで見つからない場合、元のURLを試す
+	if fetchURL == "" {
+		exists, _ := f.checkURLExists(originalURL)
+		if exists {
+			fetchURL = originalURL
+		} else {
+			return nil
+		}
+	}
+
+	// Be polite: wait 1 second between requests
+	time.Sleep(1 * time.Second)
+
+	// 本文を取得
+	req, err := http.NewRequest("GET", fetchURL, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", "site2skillgo/1.0 (+https://github.com/f4ah6o/site2skill-go)")
+
+	resp, err := f.client.Do(req)
+	if err != nil {
+		log.Printf("Warning: failed to fetch %s: %v", fetchURL, err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Warning: %s returned status %d", fetchURL, resp.StatusCode)
+		return nil
+	}
+
+	// Check content type
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "text/html") && contentType != "" {
+		return nil
+	}
+
+	// Read body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Warning: failed to read body from %s: %v", fetchURL, err)
+		return nil
+	}
+
+	// Save to file
+	filePath := f.getFilePath(crawlDir, parsedURL)
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		log.Printf("Warning: failed to create directory for %s: %v", filePath, err)
+		return nil
+	}
+
+	if err := os.WriteFile(filePath, body, 0644); err != nil {
+		log.Printf("Warning: failed to write file %s: %v", filePath, err)
+		return nil
+	}
+
+	f.downloadCount++
+	elapsed := time.Since(f.startTime)
+	rate := float64(f.downloadCount) / elapsed.Seconds()
+	mins := int(elapsed.Minutes())
+	secs := int(elapsed.Seconds()) % 60
+	shortURL := fetchURL
+	if len(shortURL) > 60 {
+		shortURL = shortURL[len(shortURL)-60:]
+	}
+	localeInfo := ""
+	if foundLocale != "" {
+		localeInfo = fmt.Sprintf(" [%s]", foundLocale)
+	}
+	fmt.Printf("\r[%d pages | %dm%02ds | %.1f/s]%s %s", f.downloadCount, mins, secs, rate, localeInfo, shortURL)
+
+	// Parse HTML and extract links
+	htmlString := decodeHTML(body, resp.Header.Get("Content-Type"))
+	doc, err := html.Parse(strings.NewReader(htmlString))
+	if err != nil {
+		return nil
+	}
+
+	links := f.extractLinks(doc, fetchURL)
+
+	// Crawl links (with depth limit)
+	for _, link := range links {
+		f.crawl(link, crawlDir, depth+1)
+	}
+
+	return nil
+}
+
+// checkURLExists は HEAD リクエストで URL の存在を確認する
+// 戻り値: (exists, statusCode)
+func (f *Fetcher) checkURLExists(targetURL string) (bool, int) {
+	req, err := http.NewRequest("HEAD", targetURL, nil)
+	if err != nil {
+		return false, 0
+	}
+	req.Header.Set("User-Agent", "site2skillgo/1.0 (+https://github.com/f4ah6o/site2skill-go)")
+
+	// HEAD リクエストは短いタイムアウトで
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		// HEAD が失敗した場合、GET + Range を試す
+		return f.checkURLExistsWithRange(targetURL)
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK, resp.StatusCode
+}
+
+// checkURLExistsWithRange は GET + Range ヘッダーで URL の存在を確認する（HEADが不可の場合のフォールバック）
+func (f *Fetcher) checkURLExistsWithRange(targetURL string) (bool, int) {
+	req, err := http.NewRequest("GET", targetURL, nil)
+	if err != nil {
+		return false, 0
+	}
+	req.Header.Set("User-Agent", "site2skillgo/1.0 (+https://github.com/f4ah6o/site2skill-go)")
+	req.Header.Set("Range", "bytes=0-0")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, 0
+	}
+	defer resp.Body.Close()
+
+	// 206 Partial Content または 200 OK を成功とみなす
+	return resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusPartialContent, resp.StatusCode
 }
