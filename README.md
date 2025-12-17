@@ -32,10 +32,6 @@ go build -o site2skillgo ./cmd/site2skillgo
 go install ./cmd/site2skillgo
 ```
 
-### Pre-built Binaries
-
-Download the latest release from the [releases page](https://github.com/f4ah6o/site2skill-go/releases).
-
 ## Usage
 
 ### Basic Usage
