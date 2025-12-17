@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模式C: 地區設定衝突測試 - site2skill-go 文件</title>
+    <link rel="alternate" hreflang="ja" href="/site2skill-go/docs/ja/pattern-c/">
+    <link rel="alternate" hreflang="en" href="/site2skill-go/docs/en/pattern-c/">
+    <link rel="alternate" hreflang="zh-tw" href="/site2skill-go/docs/zh-tw/pattern-c/">
+    <link rel="canonical" href="/site2skill-go/docs/zh-tw/pattern-c/">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --border: #30363d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            color: var(--accent);
+            margin: 2rem 0 1rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        code {
+            background: #161b22;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .lang-switcher {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #161b22;
+            border-radius: 8px;
+        }
+
+        .lang-switcher a {
+            margin-right: 1rem;
+        }
+
+        .locale-info {
+            background: #d2992222;
+            border: 1px solid #d29922;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .conflict-warning {
+            background: #f8514922;
+            border: 1px solid #f85149;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="lang-switcher">🌐 語言: <a href="/site2skill-go/docs/ja/pattern-c/">日本語</a> | <a href="/site2skill-go/docs/en/pattern-c/">English</a> | <strong>繁體中文</strong></div>
+        <h1>🔀 模式C: 地區設定衝突測試</h1>
+        <div class="locale-info">
+            <strong>⚠️ 路徑地區設定優先 (Path Locale MUST Win)</strong><br>
+            路徑: <code>/docs/zh-tw/pattern-c/</code><br>
+            語言代碼: <code>zh-tw</code><br>
+            模式: 混合地區設定衝突 (Pattern C)
+        </div>
+        <div id="conflict-info"></div>
+        <h2>測試案例說明</h2>
+        <p>此頁面在路徑中包含語言地區設定（<code>zh-tw</code>），同時查詢參數指定不同的語言，以測試優先級處理。</p>
+        <p><strong>預期行為:</strong> 路徑語言（繁體中文）應優先。查詢參數應被忽略。</p>
+        <h2>衝突情景</h2>
+        <ul>
+            <li><a href="/site2skill-go/docs/zh-tw/pattern-c/?lang=ja">繁體中文路徑 + 日文參數</a></li>
+            <li><a href="/site2skill-go/docs/zh-tw/pattern-c/?lang=en">繁體中文路徑 + 英文參數</a></li>
+        </ul>
+        <p><a href="/site2skill-go/">← 返回首頁</a></p>
+    </div>
+
+    <script>
+        // Check for query parameter conflict
+        const params = new URLSearchParams(window.location.search);
+        const queryLang = params.get('lang');
+
+        if (queryLang && queryLang !== 'zh-tw') {
+            const langMap = {
+                'ja': 'Japanese (日本語)',
+                'en': 'English (英語)'
+            };
+            const conflictDiv = document.getElementById('conflict-info');
+            conflictDiv.className = 'conflict-warning';
+            conflictDiv.innerHTML = `
+                <strong>⚠️ 檢測到地區設定衝突</strong><br>
+                路徑語言: <code>zh-tw</code><br>
+                查詢參數語言: <code>${queryLang}</code> (${langMap[queryLang] || queryLang})<br>
+                <strong>路徑語言優先。此頁面以繁體中文顯示。</strong>
+            `;
+        }
+    </script>
+</body>
+
+</html>
