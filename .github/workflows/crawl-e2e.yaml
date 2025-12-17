@@ -29,42 +29,95 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Run site2skill-go crawl (default)
+        id: go_default
         run: |
           echo "=== Running site2skill-go (default) ==="
-          time ./site2skillgo generate https://f4ah6o.github.io/site2skill-go/ test-go-skill
+          START_TIME=$(date +%s.%N)
+          ./site2skillgo generate --temp-dir build-default https://f4ah6o.github.io/site2skill-go/ test-go-skill
+          END_TIME=$(date +%s.%N)
+          ELAPSED=$(echo "$END_TIME - $START_TIME" | bc)
+          echo "GO_DEFAULT_TIME=${ELAPSED}s" >> $GITHUB_OUTPUT
+
+          # Count files at each stage
+          HTML_COUNT=$(find build-default/download/crawl -name "*.html" 2>/dev/null | wc -l || echo "0")
+          MD_COUNT=$(find build-default/markdown -name "*.md" 2>/dev/null | wc -l || echo "0")
+          SKILL_COUNT=$(find .claude/skills/test-go-skill/docs -name "*.md" 2>/dev/null | wc -l || echo "0")
+          echo "GO_DEFAULT_HTML=${HTML_COUNT}" >> $GITHUB_OUTPUT
+          echo "GO_DEFAULT_MD=${MD_COUNT}" >> $GITHUB_OUTPUT
+          echo "GO_DEFAULT_SKILL=${SKILL_COUNT}" >> $GITHUB_OUTPUT
+
           echo ""
           echo "=== Go version results ==="
-          find .claude/skills/test-go-skill -type f -name "*.md" | head -20
-          find .claude/skills/test-go-skill -type f | wc -l
+          echo "Downloaded HTML: $HTML_COUNT, Converted MD: $MD_COUNT, Final skill docs: $SKILL_COUNT"
         continue-on-error: true
 
       - name: Run site2skill-go crawl (--locale-priority)
+        id: go_locale
         run: |
           echo "=== Running site2skill-go with --locale-priority ja,en ==="
-          time ./site2skillgo generate --locale-priority "ja,en" https://f4ah6o.github.io/site2skill-go/ test-go-skill-locale
+          START_TIME=$(date +%s.%N)
+          ./site2skillgo generate --temp-dir build-locale --locale-priority "ja,en" https://f4ah6o.github.io/site2skill-go/ test-go-skill-locale
+          END_TIME=$(date +%s.%N)
+          ELAPSED=$(echo "$END_TIME - $START_TIME" | bc)
+          echo "GO_LOCALE_TIME=${ELAPSED}s" >> $GITHUB_OUTPUT
+
+          # Count files at each stage
+          HTML_COUNT=$(find build-locale/download/crawl -name "*.html" 2>/dev/null | wc -l || echo "0")
+          MD_COUNT=$(find build-locale/markdown -name "*.md" 2>/dev/null | wc -l || echo "0")
+          SKILL_COUNT=$(find .claude/skills/test-go-skill-locale/docs -name "*.md" 2>/dev/null | wc -l || echo "0")
+          echo "GO_LOCALE_HTML=${HTML_COUNT}" >> $GITHUB_OUTPUT
+          echo "GO_LOCALE_MD=${MD_COUNT}" >> $GITHUB_OUTPUT
+          echo "GO_LOCALE_SKILL=${SKILL_COUNT}" >> $GITHUB_OUTPUT
+
           echo ""
-          find .claude/skills/test-go-skill-locale -type f -name "*.md" | head -20
-          find .claude/skills/test-go-skill-locale -type f | wc -l
+          echo "Downloaded HTML: $HTML_COUNT, Converted MD: $MD_COUNT, Final skill docs: $SKILL_COUNT"
         continue-on-error: true
 
       - name: Run site2skill-go crawl (--no-locale-priority)
+        id: go_no_locale
         run: |
           echo "=== Running site2skill-go with --no-locale-priority ==="
-          time ./site2skillgo generate --no-locale-priority https://f4ah6o.github.io/site2skill-go/ test-go-skill-no-locale
+          START_TIME=$(date +%s.%N)
+          ./site2skillgo generate --temp-dir build-no-locale --no-locale-priority https://f4ah6o.github.io/site2skill-go/ test-go-skill-no-locale
+          END_TIME=$(date +%s.%N)
+          ELAPSED=$(echo "$END_TIME - $START_TIME" | bc)
+          echo "GO_NO_LOCALE_TIME=${ELAPSED}s" >> $GITHUB_OUTPUT
+
+          # Count files at each stage
+          HTML_COUNT=$(find build-no-locale/download/crawl -name "*.html" 2>/dev/null | wc -l || echo "0")
+          MD_COUNT=$(find build-no-locale/markdown -name "*.md" 2>/dev/null | wc -l || echo "0")
+          SKILL_COUNT=$(find .claude/skills/test-go-skill-no-locale/docs -name "*.md" 2>/dev/null | wc -l || echo "0")
+          echo "GO_NO_LOCALE_HTML=${HTML_COUNT}" >> $GITHUB_OUTPUT
+          echo "GO_NO_LOCALE_MD=${MD_COUNT}" >> $GITHUB_OUTPUT
+          echo "GO_NO_LOCALE_SKILL=${SKILL_COUNT}" >> $GITHUB_OUTPUT
+
           echo ""
-          find .claude/skills/test-go-skill-no-locale -type f -name "*.md" | head -20
-          find .claude/skills/test-go-skill-no-locale -type f | wc -l
+          echo "Downloaded HTML: $HTML_COUNT, Converted MD: $MD_COUNT, Final skill docs: $SKILL_COUNT"
         continue-on-error: true
 
       - name: Run Python site2skill crawl (benchmark)
+        id: python_crawl
         run: |
           echo "=== Running Python site2skill ==="
-          time uvx --from git+https://github.com/laiso/site2skill site2skill \
+          START_TIME=$(date +%s.%N)
+          uvx --from git+https://github.com/laiso/site2skill site2skill \
+            --temp-dir build-python \
             https://f4ah6o.github.io/site2skill-go/ test-python-skill
+          END_TIME=$(date +%s.%N)
+          ELAPSED=$(echo "$END_TIME - $START_TIME" | bc)
+          echo "PYTHON_TIME=${ELAPSED}s" >> $GITHUB_OUTPUT
+
+          # Count files at each stage
+          HTML_COUNT=$(find build-python/download/crawl -name "*.html" 2>/dev/null | wc -l || echo "0")
+          MD_COUNT=$(find build-python/markdown -name "*.md" 2>/dev/null | wc -l || echo "0")
+          SKILL_COUNT=$(find .claude/skills/test-python-skill/docs -name "*.md" 2>/dev/null | wc -l || echo "0")
+          echo "PYTHON_HTML=${HTML_COUNT}" >> $GITHUB_OUTPUT
+          echo "PYTHON_MD=${MD_COUNT}" >> $GITHUB_OUTPUT
+          echo "PYTHON_SKILL=${SKILL_COUNT}" >> $GITHUB_OUTPUT
+
           echo ""
           echo "=== Python version results ==="
-          find .claude/skills/test-python-skill -type f -name "*.md" 2>/dev/null | head -20 || echo "No .md files found"
-          find .claude/skills/test-python-skill -type f 2>/dev/null | wc -l || echo "0"
+          echo "Downloaded HTML: $HTML_COUNT, Converted MD: $MD_COUNT, Final skill docs: $SKILL_COUNT"
         continue-on-error: true
 
       - name: Compare results
@@ -72,31 +125,42 @@ jobs:
           echo "========================================"
           echo "         BENCHMARK COMPARISON"
           echo "========================================"
-          echo ""
-          echo "--- Go version (site2skill-go) ---"
-          GO_FILES=$(find .claude/skills/test-go-skill -type f 2>/dev/null | wc -l || echo "0")
-          GO_LOCALE_FILES=$(find .claude/skills/test-go-skill-locale -type f 2>/dev/null | wc -l || echo "0")
-          GO_NO_LOCALE_FILES=$(find .claude/skills/test-go-skill-no-locale -type f 2>/dev/null | wc -l || echo "0")
-          echo "Total files (default): $GO_FILES"
-          echo "Total files (--locale-priority): $GO_LOCALE_FILES"
-          echo "Total files (--no-locale-priority): $GO_NO_LOCALE_FILES"
-          echo ""
-          echo "--- Python version (site2skill) ---"
-          PY_FILES=$(find .claude/skills/test-python-skill -type f 2>/dev/null | wc -l || echo "0")
-          echo "Total files: $PY_FILES"
-          echo ""
-          echo "========================================"
+
+          # Get metrics from previous steps
+          GO_DEFAULT_TIME="${{ steps.go_default.outputs.GO_DEFAULT_TIME }}"
+          GO_DEFAULT_HTML="${{ steps.go_default.outputs.GO_DEFAULT_HTML }}"
+          GO_DEFAULT_MD="${{ steps.go_default.outputs.GO_DEFAULT_MD }}"
+          GO_DEFAULT_SKILL="${{ steps.go_default.outputs.GO_DEFAULT_SKILL }}"
+
+          GO_LOCALE_TIME="${{ steps.go_locale.outputs.GO_LOCALE_TIME }}"
+          GO_LOCALE_HTML="${{ steps.go_locale.outputs.GO_LOCALE_HTML }}"
+          GO_LOCALE_MD="${{ steps.go_locale.outputs.GO_LOCALE_MD }}"
+          GO_LOCALE_SKILL="${{ steps.go_locale.outputs.GO_LOCALE_SKILL }}"
+
+          GO_NO_LOCALE_TIME="${{ steps.go_no_locale.outputs.GO_NO_LOCALE_TIME }}"
+          GO_NO_LOCALE_HTML="${{ steps.go_no_locale.outputs.GO_NO_LOCALE_HTML }}"
+          GO_NO_LOCALE_MD="${{ steps.go_no_locale.outputs.GO_NO_LOCALE_MD }}"
+          GO_NO_LOCALE_SKILL="${{ steps.go_no_locale.outputs.GO_NO_LOCALE_SKILL }}"
+
+          PYTHON_TIME="${{ steps.python_crawl.outputs.PYTHON_TIME }}"
+          PYTHON_HTML="${{ steps.python_crawl.outputs.PYTHON_HTML }}"
+          PYTHON_MD="${{ steps.python_crawl.outputs.PYTHON_MD }}"
+          PYTHON_SKILL="${{ steps.python_crawl.outputs.PYTHON_SKILL }}"
 
           # Job Summary output
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## 🚀 Crawl E2E Benchmark Results
 
-          | Version | Options | Files Generated |
-          |---------|---------|----------------:|
-          | **Go** (site2skill-go) | (default) | $GO_FILES |
-          | **Go** (site2skill-go) | \`--locale-priority ja,en\` | $GO_LOCALE_FILES |
-          | **Go** (site2skill-go) | \`--no-locale-priority\` | $GO_NO_LOCALE_FILES |
-          | **Python** (site2skill) | (none - no locale support) | $PY_FILES |
+          ### Pipeline Stage Metrics
+
+          | Version | Options | Downloaded (HTML) | Converted (MD) | Final (docs) | Time |
+          |---------|---------|------------------:|---------------:|-------------:|-----:|
+          | **Go** | (default) | $GO_DEFAULT_HTML | $GO_DEFAULT_MD | $GO_DEFAULT_SKILL | $GO_DEFAULT_TIME |
+          | **Go** | \`--locale-priority ja,en\` | $GO_LOCALE_HTML | $GO_LOCALE_MD | $GO_LOCALE_SKILL | $GO_LOCALE_TIME |
+          | **Go** | \`--no-locale-priority\` | $GO_NO_LOCALE_HTML | $GO_NO_LOCALE_MD | $GO_NO_LOCALE_SKILL | $GO_NO_LOCALE_TIME |
+          | **Python** | (no locale support) | $PYTHON_HTML | $PYTHON_MD | $PYTHON_SKILL | $PYTHON_TIME |
+
+          > **Note:** Python file counts are from \`docs/\` only (excludes \`readme.md\`, \`search_docs.py\`)
 
           ### 📁 Generated Files (Go default)
           \`\`\`
@@ -120,25 +184,8 @@ jobs:
             exit 0
           fi
 
-          # Compare directory structure
-          echo "--- Directory Structure Comparison ---"
-          GO_STRUCTURE=$(find "$GO_SKILL_DIR" -type f | sed "s|$GO_SKILL_DIR/||" | sort)
-          PY_STRUCTURE=$(find "$PY_SKILL_DIR" -type f | sed "s|$PY_SKILL_DIR/||" | sort)
-
-          STRUCTURE_DIFF=$(diff <(echo "$GO_STRUCTURE") <(echo "$PY_STRUCTURE") || true)
-          if [ -n "$STRUCTURE_DIFF" ]; then
-            HAS_DIFF=true
-            DIFF_OUTPUT+="### 📂 Directory Structure Differences\n\n"
-            DIFF_OUTPUT+="\`\`\`diff\n"
-            DIFF_OUTPUT+="$STRUCTURE_DIFF\n"
-            DIFF_OUTPUT+="\`\`\`\n\n"
-            DIFF_OUTPUT+="**Legend:** \`<\` = Go only, \`>\` = Python only\n\n"
-            echo "Structure differences found"
-          else
-            echo "No structure differences"
-          fi
-
           # Compare documentation content (docs/ directory only)
+          # Skip directory structure comparison as it includes skill name differences
           echo "--- Content Comparison (docs/*.md) ---"
           GO_DOCS_DIR="$GO_SKILL_DIR/docs"
           PY_DOCS_DIR="$PY_SKILL_DIR/docs"
@@ -149,10 +196,29 @@ jobs:
             PY_DOC_FILES=$(find "$PY_DOCS_DIR" -name "*.md" -exec basename {} \; | sort)
             COMMON_FILES=$(comm -12 <(echo "$GO_DOC_FILES") <(echo "$PY_DOC_FILES"))
             
+            # Show file list differences (Go only / Python only)
+            GO_ONLY=$(comm -23 <(echo "$GO_DOC_FILES") <(echo "$PY_DOC_FILES"))
+            PY_ONLY=$(comm -13 <(echo "$GO_DOC_FILES") <(echo "$PY_DOC_FILES"))
+            
+            if [ -n "$GO_ONLY" ] || [ -n "$PY_ONLY" ]; then
+              HAS_DIFF=true
+              DIFF_OUTPUT+="### 📂 docs/ File List Differences\n\n"
+              if [ -n "$GO_ONLY" ]; then
+                DIFF_OUTPUT+="**Go only:**\n\`\`\`\n$GO_ONLY\n\`\`\`\n\n"
+              fi
+              if [ -n "$PY_ONLY" ]; then
+                DIFF_OUTPUT+="**Python only:**\n\`\`\`\n$PY_ONLY\n\`\`\`\n\n"
+              fi
+            fi
+            
             if [ -n "$COMMON_FILES" ]; then
               CONTENT_DIFF=""
               for file in $COMMON_FILES; do
-                FILE_DIFF=$(diff "$GO_DOCS_DIR/$file" "$PY_DOCS_DIR/$file" 2>/dev/null || true)
+                # Compare content, filtering out skill name differences
+                FILE_DIFF=$(diff \
+                  <(sed 's/test-go-skill/SKILL_NAME/g' "$GO_DOCS_DIR/$file") \
+                  <(sed 's/test-python-skill/SKILL_NAME/g' "$PY_DOCS_DIR/$file") \
+                  2>/dev/null || true)
                 if [ -n "$FILE_DIFF" ]; then
                   CONTENT_DIFF+="#### $file\n\`\`\`diff\n$FILE_DIFF\n\`\`\`\n\n"
                 fi
@@ -166,16 +232,21 @@ jobs:
             fi
           fi
 
-          # Compare SKILL.md
+          # Compare SKILL.md (filtering out skill name differences)
           echo "--- SKILL.md Comparison ---"
           GO_SKILL_MD="$GO_SKILL_DIR/SKILL.md"
           PY_SKILL_MD="$PY_SKILL_DIR/SKILL.md"
 
           if [ -f "$GO_SKILL_MD" ] && [ -f "$PY_SKILL_MD" ]; then
-            SKILL_MD_DIFF=$(diff "$GO_SKILL_MD" "$PY_SKILL_MD" || true)
+            # Replace skill names with placeholder before diff
+            SKILL_MD_DIFF=$(diff \
+              <(sed 's/test-go-skill/SKILL_NAME/g; s/TEST-GO-SKILL/SKILL_NAME/g' "$GO_SKILL_MD") \
+              <(sed 's/test-python-skill/SKILL_NAME/g; s/TEST-PYTHON-SKILL/SKILL_NAME/g' "$PY_SKILL_MD") \
+              || true)
             if [ -n "$SKILL_MD_DIFF" ]; then
               HAS_DIFF=true
               DIFF_OUTPUT+="### 📋 SKILL.md Differences\n\n"
+              DIFF_OUTPUT+="*(skill name differences filtered)*\n\n"
               DIFF_OUTPUT+="\`\`\`diff\n"
               DIFF_OUTPUT+="$SKILL_MD_DIFF\n"
               DIFF_OUTPUT+="\`\`\`\n\n"
@@ -191,6 +262,7 @@ jobs:
           ## 🔍 Go vs Python Output Diff
 
           > Differences detected between site2skill-go and Python site2skill outputs.
+          > *(Skill name differences are filtered out)*
 
           $(echo -e "$DIFF_OUTPUT")
           EOF
