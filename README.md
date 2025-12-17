@@ -8,15 +8,6 @@ Agent Skills are dynamically loaded knowledge modules that AI assistants use on 
 - **Claude Agent Skills** - For Claude Code, Claude apps, and the API
 - **Codex Skills** - For OpenAI Codex and compatible systems
 
-## Features
-
-- 🚀 **Rewritten in Go** - Fast, single binary, no dependencies
-- 🔄 **Dual Format Support** - Generate skills for both Claude and Codex
-- 🌐 **Built-in Web Crawler** - No need for wget
-- 📝 **Smart HTML to Markdown Conversion** - Clean, readable documentation
-- 🔍 **Full-text Search** - Embedded search script in each skill
-- ✅ **Validation** - Automatic size and structure checks
-
 ## Installation
 
 ### Using `go install` (Recommended)
@@ -51,13 +42,13 @@ Download the latest release from the [releases page](https://github.com/f4ah6o/s
 
 ```bash
 # Generate a Claude skill
-site2skillgo generate https://docs.example.com myskill
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ myskill
 
 # Generate a Codex skill
-site2skillgo generate https://docs.example.com myskill --format codex
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ myskill --format codex
 
 # Generate both Claude and Codex skills
-site2skillgo generate https://docs.example.com myskill --format both
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ myskill --format both
 ```
 
 ### Commands
@@ -103,26 +94,26 @@ site2skillgo search <QUERY> [options]
 ### Examples
 
 ```bash
-# Create a Claude skill for PAY.JP documentation
-site2skillgo generate https://docs.pay.jp/v1/ payjp
+# Create a Claude skill from documentation
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill
 
-# Create a Codex skill for Stripe API
-site2skillgo generate https://stripe.com/docs/api stripe --format codex
+# Create a Codex skill
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --format codex
 
 # Create both Claude and Codex skills
-site2skillgo generate https://docs.python.org/3/ python3 --format both
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --format both
 
 # Custom output directory
-site2skillgo generate https://docs.python.org/3/ python3 --output ./my-skills --clean
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --output ./my-skills --clean
 
 # Skip fetching (reuse downloaded files)
-site2skillgo generate https://docs.example.com example --skip-fetch
+site2skillgo generate https://f4ah6o.github.io/site2skill-go/ site2skill --skip-fetch
 
 # Search in skill documentation
-site2skillgo search "authentication" --skill-dir .claude/skills/myskill
+site2skillgo search "authentication" --skill-dir .claude/skills/site2skill
 
 # Search with JSON output (limited results)
-site2skillgo search "api endpoint" --json --max-results 5 --skill-dir .claude/skills/myskill
+site2skillgo search "api endpoint" --json --max-results 5 --skill-dir .claude/skills/site2skill
 ```
 
 ## How it works
@@ -182,6 +173,10 @@ GOOS=linux GOARCH=amd64 go build -o site2skillgo-linux-amd64 ./cmd/site2skillgo
 GOOS=darwin GOARCH=amd64 go build -o site2skillgo-darwin-amd64 ./cmd/site2skillgo
 GOOS=windows GOARCH=amd64 go build -o site2skillgo-windows-amd64.exe ./cmd/site2skillgo
 ```
+
+## Acknowledgments
+
+This project is a Go rewrite and fork of [laiso/site2skill](https://github.com/laiso/site2skill). Special thanks to [@laiso](https://github.com/laiso) for creating the original tool and concept.
 
 ## License
 
