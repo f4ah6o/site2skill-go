@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -41,14 +42,14 @@ func New() *Converter {
 
 // ConvertFile converts an HTML file to Markdown with YAML frontmatter metadata.
 // It performs the following steps:
-//   1. Reads and decodes the HTML file with proper charset handling
-//   2. Parses the HTML and extracts the title (from <title> or <h1>)
-//   3. Identifies and extracts main content (from <main>, <article>, <div.content>, or <body>)
-//   4. Removes unwanted elements (scripts, styles, navigation, etc.)
-//   5. Converts cleaned HTML to Markdown
-//   6. Post-processes Markdown (removes excess whitespace)
-//   7. Adds YAML frontmatter with title, source URL, and fetch timestamp
-//   8. Writes the final Markdown to the output file
+//  1. Reads and decodes the HTML file with proper charset handling
+//  2. Parses the HTML and extracts the title (from <title> or <h1>)
+//  3. Identifies and extracts main content (from <main>, <article>, <div.content>, or <body>)
+//  4. Removes unwanted elements (scripts, styles, navigation, etc.)
+//  5. Converts cleaned HTML to Markdown
+//  6. Post-processes Markdown (removes excess whitespace)
+//  7. Adds YAML frontmatter with title, source URL, and fetch timestamp
+//  8. Writes the final Markdown to the output file
 //
 // Parameters:
 //   - htmlPath: Path to the HTML file to convert
@@ -128,9 +129,12 @@ fetched_at: "%s"
 
 	finalMD := frontmatter + markdown
 
-	// Ensure output directory exists
-	if err := os.MkdirAll(strings.TrimSuffix(outputPath, "/"+strings.Split(outputPath, "/")[len(strings.Split(outputPath, "/"))-1]), 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
+	// Ensure output directory exists when one is specified
+	outputDir := filepath.Dir(outputPath)
+	if outputDir != "" && outputDir != "." {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory: %w", err)
+		}
 	}
 
 	// Write output
