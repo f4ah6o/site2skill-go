@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Claude Code SessionStart hook for site2skill-go
+# Ensures Go dependencies are ready before coding sessions begin.
+
+if [ -f "go.mod" ]; then
+  echo "[SessionStart] Ensuring Go dependencies are downloaded..."
+  make deps
+else
+  echo "[SessionStart] No go.mod found; skipping dependency setup."
+fi
