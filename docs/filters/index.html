@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filter Tests - site2skill-go Documentation</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --border: #30363d;
+            --warning: #d29922;
+            --danger: #f85149;
+            --success: #3fb950;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 880px;
+            margin: 0 auto;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: var(--accent);
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        code {
+            background: #161b22;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge-warning {
+            background: var(--warning);
+            color: #000;
+        }
+
+        .badge-danger {
+            background: var(--danger);
+            color: #000;
+        }
+
+        .badge-success {
+            background: var(--success);
+            color: #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        th {
+            background: #161b22;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎯 URL Filter Testbed</h1>
+        <p>This page exists to verify the <code>--include</code> and <code>--exclude</code> options. Use it to ensure filters
+            are applied consistently before converting documentation into skills.</p>
+
+        <h2>How to Test</h2>
+        <pre><code># Crawl only filter pages and skip the excluded one
+site2skillgo generate --include "filters" --exclude "exclude" https://f4ah6o.github.io/site2skill-go/ filter-playground
+
+# Verify exclude wins over include
+site2skillgo generate --include "filters,exclude" --exclude "exclude" https://f4ah6o.github.io/site2skill-go/ filter-playground
+        </code></pre>
+
+        <h2>Test URLs</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Path</th>
+                    <th>Expectation</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><a href="/site2skill-go/docs/filters/include-only/">/docs/filters/include-only/</a></td>
+                    <td><span class="badge badge-warning">Fetched only when include filter matches "filters" or "include"</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td><a href="/site2skill-go/docs/filters/exclude-me/">/docs/filters/exclude-me/</a></td>
+                    <td><span class="badge badge-danger">Must be skipped when exclude filter includes "exclude"</span></td>
+                </tr>
+                <tr>
+                    <td><a href="/site2skill-go/docs/filters/mixed-signal/">/docs/filters/mixed-signal/</a></td>
+                    <td><span class="badge badge-success">Always fetched (control page)</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Why This Matters</h2>
+        <ul>
+            <li>Include filters keep crawls focused on specific versions or sections.</li>
+            <li>Exclude filters prevent unwanted content (beta pages, admin paths) from being packaged.</li>
+            <li>Exclude overrides include to avoid accidental leakage when patterns overlap.</li>
+        </ul>
+
+        <p><a href="/site2skill-go/">← Back to Home</a></p>
+    </div>
+</body>
+
+</html>

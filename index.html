@@ -182,6 +182,17 @@
         </ul>
         <p>Pages that exist only in specific locales.</p>
 
+        <h3>Pattern F: URL Filters</h3>
+        <ul>
+            <li><a href="/site2skill-go/docs/filters/include-only/">/docs/filters/include-only/</a> - Should only be crawled
+                when an include filter matches</li>
+            <li><a href="/site2skill-go/docs/filters/exclude-me/">/docs/filters/exclude-me/</a> - Should be skipped when an
+                exclude filter matches</li>
+            <li><a href="/site2skill-go/docs/filters/mixed-signal/">/docs/filters/mixed-signal/</a> - Neutral page to confirm
+                default crawling</li>
+        </ul>
+        <p>Use these to validate the <code>--include</code>/<code>--exclude</code> flags.</p>
+
         <h2>robots.txt Rules</h2>
         <pre><code>User-agent: *
 Disallow: /site2skill-go/docs/ng/
@@ -231,6 +242,31 @@ Disallow:</code></pre>
             </tbody>
         </table>
 
+        <h2>URL Filter Expectations</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Target URL</th>
+                    <th>Expected Behavior</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>/docs/filters/include-only/</code></td>
+                    <td><span class="badge badge-warning">Fetched only when include filter matches "filters" or
+                            "include"</span></td>
+                </tr>
+                <tr>
+                    <td><code>/docs/filters/exclude-me/</code></td>
+                    <td><span class="badge badge-danger">Skipped when exclude filter matches "exclude"</span></td>
+                </tr>
+                <tr>
+                    <td><code>/docs/filters/mixed-signal/</code></td>
+                    <td><span class="badge badge-success">Fetched normally (acts as control page)</span></td>
+                </tr>
+            </tbody>
+        </table>
+
         <h2>site2skillgo Usage</h2>
         <h3>Basic Command</h3>
         <pre><code>site2skillgo generate &lt;URL&gt; &lt;SKILL_NAME&gt; [options]</code></pre>
@@ -259,6 +295,26 @@ Disallow:</code></pre>
             </tbody>
         </table>
 
+        <h3>Filter Options</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Option</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>--include</code></td>
+                    <td>Limit crawling to URLs containing the provided substring (repeatable or comma-separated)</td>
+                </tr>
+                <tr>
+                    <td><code>--exclude</code></td>
+                    <td>Skip URLs containing the provided substring (takes precedence over include)</td>
+                </tr>
+            </tbody>
+        </table>
+
         <h3>Examples</h3>
         <pre><code># Crawl with Japanese priority
 site2skillgo generate --locale-priority "ja,en" https://f4ah6o.github.io/site2skill-go/ myskill
@@ -269,11 +325,20 @@ site2skillgo generate --locale-param "hl" https://f4ah6o.github.io/site2skill-go
 # Disable locale priority
 site2skillgo generate --no-locale-priority https://f4ah6o.github.io/site2skill-go/ myskill</code></pre>
 
+        <h3>Filter Examples</h3>
+        <pre><code># Crawl only filter test pages and drop the excluded sample
+site2skillgo generate --include "filters" --exclude "exclude" https://f4ah6o.github.io/site2skill-go/ filter-playground
+
+# Include multiple targets with a comma-separated list
+site2skillgo generate --include "filters,docs" https://f4ah6o.github.io/site2skill-go/ filter-playground</code></pre>
+
         <h2>Notes</h2>
         <ul>
             <li>No redirects are intentionally used</li>
             <li>Canonical URLs may exist in multiple forms</li>
             <li>This site is intentionally hostile to naive crawlers</li>
+            <li>A dedicated <a href="/site2skill-go/docs/filters/">Filter Test page</a> exists for verifying
+                <code>--include</code>/<code>--exclude</code></li>
         </ul>
     </div>
 </body>
