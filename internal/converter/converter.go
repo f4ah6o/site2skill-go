@@ -15,6 +15,7 @@ import (
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/mackee/go-readability"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/htmlindex"
 	"golang.org/x/text/transform"
@@ -83,30 +84,48 @@ func (c *Converter) ConvertFile(htmlPath, outputPath, sourceURL, fetchedAt strin
 		title = strings.TrimSpace(h1Text)
 	}
 
-	// Extract main content
-	var mainContent *goquery.Selection
-	if main := doc.Find("main").First(); main.Length() > 0 {
-		mainContent = main
-	} else if article := doc.Find("article").First(); article.Length() > 0 {
-		mainContent = article
-	} else if content := doc.Find("div.content").First(); content.Length() > 0 {
-		mainContent = content
-	} else if body := doc.Find("body").First(); body.Length() > 0 {
-		mainContent = body
+	mainHTML := ""
+
+	// First, try Readability extraction for more accurate content isolation
+	if article, err := readability.Extract(htmlString, readability.DefaultOptions()); err == nil {
+		if content := strings.TrimSpace(readability.ToHTML(article.Root)); content != "" {
+			mainHTML = content
+			if readableTitle := strings.TrimSpace(article.Title); readableTitle != "" {
+				title = readableTitle
+			}
+		} else {
+			log.Printf("Warning: Readability returned empty content for %s, falling back to selector extraction", htmlPath)
+		}
+	} else {
+		log.Printf("Warning: Readability parsing failed for %s: %v; falling back to selector extraction", htmlPath, err)
 	}
 
-	if mainContent == nil || mainContent.Length() == 0 {
-		log.Printf("Warning: No main content found in %s", htmlPath)
-		return nil
-	}
+	if mainHTML == "" {
+		// Fallback to existing DOM-based extraction
+		var mainContent *goquery.Selection
+		if main := doc.Find("main").First(); main.Length() > 0 {
+			mainContent = main
+		} else if article := doc.Find("article").First(); article.Length() > 0 {
+			mainContent = article
+		} else if content := doc.Find("div.content").First(); content.Length() > 0 {
+			mainContent = content
+		} else if body := doc.Find("body").First(); body.Length() > 0 {
+			mainContent = body
+		}
 
-	// Clean HTML
-	c.cleanHTML(mainContent)
+		if mainContent == nil || mainContent.Length() == 0 {
+			log.Printf("Warning: No main content found in %s", htmlPath)
+			return nil
+		}
 
-	// Convert to Markdown
-	mainHTML, err := mainContent.Html()
-	if err != nil {
-		return fmt.Errorf("failed to get HTML: %w", err)
+		// Clean HTML
+		c.cleanHTML(mainContent)
+
+		var err error
+		mainHTML, err = mainContent.Html()
+		if err != nil {
+			return fmt.Errorf("failed to get HTML: %w", err)
+		}
 	}
 
 	markdown, err := c.mdConverter.ConvertString(mainHTML)
